@@ -1,0 +1,374 @@
+nats-studio/src-tauri/src/main.rs
+  s_eb5fcf0a950ba8::t_570f3e5b4c8c83 1-6
+nats-studio/src-tauri/Cargo.toml
+  s_eb5fcf0a950ba8::t_b383a506eab373 1-3,5-10,14-21,25-27
+  s_eb5fcf0a950ba8::t_08a1cec252fd26 11-13
+  s_eb5fcf0a950ba8::t_8387b204f082b5 4
+  s_eb5fcf0a950ba8::t_6c45d450f426f3 22-24
+nats-studio/patches/tauri-macros/Cargo.toml
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-81
+nats-studio/src/index.html
+  s_eb5fcf0a950ba8::t_734c6043a0b6cf 329,333,335,337,344
+  s_eb5fcf0a950ba8::t_3119ccf122a921 23-31,33-37,43-47,49,54,59-60,62-63,65-66,68,70,72,76,79
+  s_eb5fcf0a950ba8::t_a54d9903ba6d79 1-11,13-22,32,38-42,48,50-53,55-58,61,64,67,69,71,73-75,77,92-100,103-116,118-129,141-166,168-197,203-218,306,308-310,312-328,330-332,334,336,338-343,345-350,356-366,369-377,388-390,392-394,396,399-421,426-429,450-452,454-459,514-517,531,534,536-537,574-583,586,591-594,601,604-607,609,611-614,618,621-625,630,633-634,637-641,646-648,652-654,656-659,662-664,670,672-675,678-680,683-685,689-692,697,711-718,722-726,739,741,744-745,751,770-771,773-780,782-786,816,1015,1018-1019,1024,1031-1032,1035,1048,1050-1051,1054,1061-1063
+  s_eb5fcf0a950ba8::t_c0f5772b8af19b 518-526
+  s_eb5fcf0a950ba8::t_820cfe48966650 12,78,80-91,101-102,117,130-140,167,198-202,219-305,307,311,351-355,367-368,378-387,391,395,397-398,422-425,430-449,453,460-513,527-530,532-533,535,538-573,584-585,587-590,595-600,602-603,608,610,615-617,619-620,626-629,631-632,635-636,642-645,649-651,655,660-661,665-669,671,676-677,681-682,686-688,693-696,698-710,719-721,727-738,740,742-743,746-750,752-769,772,781,787-815,817-1014,1016-1017,1020-1023,1025-1030,1033-1034,1036-1047,1049,1052-1053,1055-1060
+nats-studio/patches/tauri-macros/src/mobile.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-95
+nats-studio/Cargo.toml
+  s_eb5fcf0a950ba8::t_0de497d1a4580c 1-3
+nats-studio/src-tauri/src/lib.rs
+  s_eb5fcf0a950ba8::t_8a5da633553c38 99-102
+  s_eb5fcf0a950ba8::t_e73441d2f9e541 6
+  s_eb5fcf0a950ba8::t_85946d19f73c8b 59,77-81,123-125,127-144,146-162,164-282,285,302,306-308
+  s_eb5fcf0a950ba8::t_6ab02397d4acf3 15-26
+  s_eb5fcf0a950ba8::t_afdbd7f0d69d21 1-5,7-14,27,37-44,46-58,60-75,83-91,93-98,103-106,108-122,283-284,286-301,303-305,309-312
+  s_eb5fcf0a950ba8::t_65c27637887dea 28-36,45,76,82,92,107,126,145,163
+nats-studio/rust-toolchain.toml
+  s_eb5fcf0a950ba8::t_cb28d57db5f1df 1-2
+nats-studio/src-tauri/gen/schemas/capabilities.json
+  s_eb5fcf0a950ba8::t_2f3e22a5b12904 1
+nats-studio/patches/tauri-macros/src/runtime.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-105
+paper/arxiv/refs.bib
+  s_eb5fcf0a950ba8::t_fb3f5f6667649c 1-90
+paper/arxiv/main.tex
+  s_eb5fcf0a950ba8::t_894a0cb9f602f8 293
+  s_eb5fcf0a950ba8::t_f779716144fc8d 528
+  s_eb5fcf0a950ba8::t_b640afa213baaa 319
+  s_eb5fcf0a950ba8::t_5576d13a4aacdb 298,302-303
+  s_eb5fcf0a950ba8::t_6fac825c987642 6,16-17,19-20,22-23,29-30,42,68,72,78,82-83,96-97,121,125,127-128,132-133,140-141,146,148,156,158,167,186,188,190,193,195,212,214,217,235,239,242,246,248,250,370,399,448,476,550,622-623
+  s_eb5fcf0a950ba8::t_8e653be9e82215 24-28,130,152,223,272,279,287,312,457,537
+  s_eb5fcf0a950ba8::t_ccd438b9c8b45e 94
+  s_eb5fcf0a950ba8::t_43a53cc821a7c9 215,219
+  s_eb5fcf0a950ba8::t_aa8eb2214d3fe3 240-241
+  s_eb5fcf0a950ba8::t_4d0f975b80e7b3 253,255-259,355,357,359-364,383,385,387-391,427,429,431-436,465,467,469-472
+  s_eb5fcf0a950ba8::t_0876a98391dbed 477
+  s_eb5fcf0a950ba8::t_1af2f76808b1e1 538
+  s_eb5fcf0a950ba8::t_7fd3844474bc63 205-206,209
+  s_eb5fcf0a950ba8::t_0ffbbf5de9e78b 15,171
+  s_eb5fcf0a950ba8::t_af0e7aa49863d1 161-162
+  s_eb5fcf0a950ba8::t_edf1a0a2128d92 290-291,294-295
+  s_eb5fcf0a950ba8::t_8dd832eaf6f919 79-80
+  s_eb5fcf0a950ba8::t_e2921c1907dbab 189
+  s_eb5fcf0a950ba8::t_b3fbb95abb79ba 480
+  s_eb5fcf0a950ba8::t_917e66672da0a4 262-265
+  s_eb5fcf0a950ba8::t_fe65922cd2f950 175,177,180,183,198,202,204,208,220,222,225,233,350-351,356,358,365-368,378-379,384,386,392-395,401,423,428,430,437-440,460-461,466,468,473-475
+  s_eb5fcf0a950ba8::t_04819ff25c3fa2 84,89
+  s_eb5fcf0a950ba8::t_d022ab6911c463 184-185
+  s_eb5fcf0a950ba8::t_be9dea5f742544 142-145
+  s_eb5fcf0a950ba8::t_25e52b9b9525c3 229-231
+  s_eb5fcf0a950ba8::t_d3eb8e07d4add0 1-3
+  s_eb5fcf0a950ba8::t_c3734afed43ee3 314
+  s_eb5fcf0a950ba8::t_2448c243b1a0f7 551-621
+  s_eb5fcf0a950ba8::t_e281ddf7dcc788 196-197
+  s_eb5fcf0a950ba8::t_c87698bdbff718 9,18,21,44-61,64-65,69-71,73-77,81,85-88,90-93,95,98-99,102-120,122-124,126,129,131,134-139,147,149-151,153-155,157,159-160,163-166,168-170,172,174,176,178-179,181-182,187,191-192,194,199-201,203,207,210-211,213,216,218,221,224,226-228,232,234,236-238,243-245,247,249,251-252,254,260-261,266-271,273-278,280-285,288-289,292,296-297,299-301,304-311,313,315-318,322-349,352-354,369,371-377,380-382,396-398,400,402-422,424-426,441-447,449-456,458-459,462-464,478-479,481-527,529-536,539-549
+  s_eb5fcf0a950ba8::t_31567c2f15cf4e 173
+  s_eb5fcf0a950ba8::t_7bde28b11a5962 286
+  s_eb5fcf0a950ba8::t_d0574ec875b314 4-5,7-8,10-14,31-41,66-67
+  s_eb5fcf0a950ba8::t_37e038ebab089b 320-321
+  s_eb5fcf0a950ba8::t_d911972b535556 100-101
+  s_eb5fcf0a950ba8::t_6b9567795fb0f4 43,62-63
+nats-studio/src-tauri/build.rs
+  s_eb5fcf0a950ba8::t_690eee8e927415 1-3
+nats-studio/patches/tauri-macros/.cargo-ok
+  s_eb5fcf0a950ba8::t_26504a4c098091 1
+scripts/docker-compose-cluster.yml
+  s_eb5fcf0a950ba8::t_97f86b0c6d764a 27-28
+  s_eb5fcf0a950ba8::t_ba4878b00aeee4 11-12
+  s_eb5fcf0a950ba8::t_b9b4f521ee5bfb 1-2,9,14,25,30,41,46
+  s_eb5fcf0a950ba8::t_16173d57b9763c 3-8,10,13,15-24,26,29,31-40,42,45,47-57
+  s_eb5fcf0a950ba8::t_95bba0aee16524 43-44
+eval-multilang/go/main.go
+  s_eb5fcf0a950ba8::t_7cdc78568c78ca 56,64-70
+  s_eb5fcf0a950ba8::t_ab5785b9096db1 71-74,78-79,82-83,92-95,97,100-102
+  s_eb5fcf0a950ba8::t_a0e2f006c5410e 178-179
+  s_eb5fcf0a950ba8::t_1eac19014800cc 126-129
+nats-studio/patches/tauri-macros/src/command/wrapper.rs
+  s_eb5fcf0a950ba8::t_ac28f6c2c09020 343-345
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-342,346-524
+scripts/nats-cluster-n3.conf
+  s_eb5fcf0a950ba8::t_6d08b14f99ac96 3
+  s_eb5fcf0a950ba8::t_84f0e240f9db95 1-2,4-16
+nats-studio/src-tauri/gen/schemas/acl-manifests.json
+  s_eb5fcf0a950ba8::t_2f3e22a5b12904 1
+scripts/nats-cluster-n1.conf
+  s_eb5fcf0a950ba8::t_91044c204980a2 1-2,4-16
+  s_eb5fcf0a950ba8::t_6d08b14f99ac96 3
+nats-studio/patches/tauri-macros/Cargo.toml.orig
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-34
+nats-studio/src-tauri/gen/schemas/macOS-schema.json
+  s_eb5fcf0a950ba8::t_2f3e22a5b12904 1-2702
+paper/src/paper.md
+  s_eb5fcf0a950ba8::t_96149da30444cf 103
+  s_eb5fcf0a950ba8::t_aefc601701a97e 63,65,67,69-71
+  s_eb5fcf0a950ba8::t_05c78e5dcf2d06 297
+  s_eb5fcf0a950ba8::t_8cd11f5b5c9a05 3-4
+  s_eb5fcf0a950ba8::t_e2922c3815f7e2 412-416,418,420,422,424,426,428,430
+  s_eb5fcf0a950ba8::t_7233c92f0e6602 163-174
+  s_eb5fcf0a950ba8::t_83509802af236e 61-62,64,66,68
+  s_eb5fcf0a950ba8::t_44a617c65d953a 139
+  s_eb5fcf0a950ba8::t_594d904e85e042 459-460
+  s_eb5fcf0a950ba8::t_cc2e66723e402c 477-478
+  s_eb5fcf0a950ba8::t_bcce5d2da168cd 19,21-25,27,29,31-34
+  s_eb5fcf0a950ba8::t_923bf7d206e845 215,217,219,221,223
+  s_eb5fcf0a950ba8::t_ba2eb2340432c4 379-381
+  s_eb5fcf0a950ba8::t_635a85eaf61334 446
+  s_eb5fcf0a950ba8::t_a98e53c1907a15 311,313
+  s_eb5fcf0a950ba8::t_c57fdba7c467e2 59
+  s_eb5fcf0a950ba8::t_c74f0c812e1042 436,438-440
+  s_eb5fcf0a950ba8::t_bc8603aded9eb1 385-387
+  s_eb5fcf0a950ba8::t_66a31039ffe8d1 11
+  s_eb5fcf0a950ba8::t_3797743db2ebc7 322-323,325
+  s_eb5fcf0a950ba8::t_2d628f806a8c61 349-350,352,360,365-368,370,378,382-384
+  s_eb5fcf0a950ba8::t_32a42e421938ed 5
+  s_eb5fcf0a950ba8::t_8bd5749dd217b8 179,181,185-186,188-192,195-201,203,205
+  s_eb5fcf0a950ba8::t_41570ba9e3b67a 315-321,324,327
+  s_eb5fcf0a950ba8::t_525dad55cfe85d 347
+  s_eb5fcf0a950ba8::t_7e6517f215871f 369,371-377
+  s_eb5fcf0a950ba8::t_bce2690b826e21 351,353-359,361,363
+  s_eb5fcf0a950ba8::t_870f09dde5e636 211
+  s_eb5fcf0a950ba8::t_b43d886e1897fc 293
+  s_eb5fcf0a950ba8::t_3cfc4bd6ecc12c 17
+  s_eb5fcf0a950ba8::t_c3622f3b17b3b8 447-458,462-463,465-466,468-476,479,481,483,485,487,489
+  s_eb5fcf0a950ba8::t_284c41991b705b 343
+  s_eb5fcf0a950ba8::t_af8109c721ee59 75,77,79,81,83,85,87
+  s_eb5fcf0a950ba8::t_e04ed11e8ac880 251
+  s_eb5fcf0a950ba8::t_a4da79752a699c 60
+  s_eb5fcf0a950ba8::t_e6e31c4659ebd1 348
+  s_eb5fcf0a950ba8::t_4276e9f645115f 461
+nats-studio/patches/tauri-macros/src/command/handler.rs
+  s_eb5fcf0a950ba8::t_ac28f6c2c09020 47-48,53-54,161-166,171
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-46,49-52,55-160,167-170,172-185
+nats-studio/patches/tauri-macros/LICENSE-APACHE-2.0
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-177
+nats-studio/patches/tauri-macros/src/command/mod.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-24
+nats-studio/patches/tauri-macros/LICENSE-MIT
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-21
+nats-studio/patches/tauri-macros/src/lib.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-394
+eval-multilang/run_multilang_eval.py
+  s_eb5fcf0a950ba8::t_2e50f7bdb0003e 36,40-43
+  s_eb5fcf0a950ba8::t_cbeb0a78babe22 52,54-58
+  s_eb5fcf0a950ba8::t_625a54208ba5bc 151
+  s_eb5fcf0a950ba8::t_a3c155204a5fc1 162
+  s_eb5fcf0a950ba8::t_5b19c3ed26f56e 1-35,37-39,44-46,48-51,53,59-150,152-161,163-177
+  s_eb5fcf0a950ba8::t_3c790d8c8ac0f4 47
+nats-studio/package.json
+  s_eb5fcf0a950ba8::t_5c89907c8fe8cf 1-16
+nats-studio/src-tauri/tauri.conf.json
+  s_eb5fcf0a950ba8::t_dd830d2e247888 11
+  s_eb5fcf0a950ba8::t_983c6efc824052 1-10,12-39
+nats-studio/patches/tauri-macros/.cargo_vcs_info.json
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-6
+nats-studio/patches/tauri-macros/src/menu.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-136
+scripts/nats-cluster-n2.conf
+  s_eb5fcf0a950ba8::t_206ef0f579e739 1-2,4-16
+  s_eb5fcf0a950ba8::t_6d08b14f99ac96 3
+nats-studio/patches/tauri-macros/README.md
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-42
+nats-studio/patches/tauri-macros/src/context.rs
+  s_eb5fcf0a950ba8::t_26504a4c098091 1-169
+nats-studio/src-tauri/gen/schemas/desktop-schema.json
+  s_eb5fcf0a950ba8::t_2f3e22a5b12904 1-2702
+ui/index.html
+  s_eb5fcf0a950ba8::t_323ee8bb6f03f2 4-5,7-9,12-24,26-170,173-182,184-189,191-192,196-201,203-207,209-210,212-223,225-232,237-240,244,247-248,250-253,255-257,259-261,264,266-271,274-287,289-291,295-300,303-310,313-338,341-355,358-384,387-389,392-397,400-411,414-421,424-426
+eval-multilang/python/consumer.py
+  s_eb5fcf0a950ba8::t_de68fb674e6b53 31-39,41,43,52-54,56
+crates/eval/src/main.rs
+  s_eb5fcf0a950ba8::t_109060b5dde318 686,689-691
+  s_eb5fcf0a950ba8::t_8a36e16fa0f5fe 142
+  s_eb5fcf0a950ba8::t_cbe20b40b421c4 554-560,567-605,607-624,630
+nats-studio/Cargo.lock
+  s_eb5fcf0a950ba8::t_17a99e65b201f1 1-5350
+nats-studio/node_modules/.bin/tauri
+  s_eb5fcf0a950ba8::t_4771a80c92093e 1
+nats-studio/node_modules/.package-lock.json
+  s_eb5fcf0a950ba8::t_cfc87d3efaa270 1-245
+nats-studio/node_modules/@tauri-apps/api/CHANGELOG.md
+  s_eb5fcf0a950ba8::t_e862bbcbb4a280 1-1085
+nats-studio/node_modules/@tauri-apps/api/LICENSE-APACHE-2.0
+  s_eb5fcf0a950ba8::t_1ef6e84443c475 1-177
+nats-studio/node_modules/@tauri-apps/api/LICENSE-MIT
+  s_eb5fcf0a950ba8::t_b27f85fecb6795 1-21
+nats-studio/node_modules/@tauri-apps/api/LICENSE.spdx
+  s_eb5fcf0a950ba8::t_c82fa91e763e59 1-20
+nats-studio/node_modules/@tauri-apps/api/README.md
+  s_eb5fcf0a950ba8::t_10243a55b33fb3 1-52
+nats-studio/node_modules/@tauri-apps/api/app.cjs
+  s_eb5fcf0a950ba8::t_68980e4b34d6f9 1-358
+nats-studio/node_modules/@tauri-apps/api/app.d.ts
+  s_eb5fcf0a950ba8::t_a0baa073371c0b 1-341
+nats-studio/node_modules/@tauri-apps/api/app.js
+  s_eb5fcf0a950ba8::t_7a16441c588ebb 1-342
+nats-studio/node_modules/@tauri-apps/api/core.cjs
+  s_eb5fcf0a950ba8::t_5b16a73455173c 1-495
+nats-studio/node_modules/@tauri-apps/api/core.d.ts
+  s_eb5fcf0a950ba8::t_7b69cc0924fc21 1-445
+nats-studio/node_modules/@tauri-apps/api/core.js
+  s_eb5fcf0a950ba8::t_207f2fbd4d0d2f 1-483
+nats-studio/node_modules/@tauri-apps/api/dpi.cjs
+  s_eb5fcf0a950ba8::t_51f4a075798010 1-409
+nats-studio/node_modules/@tauri-apps/api/dpi.d.ts
+  s_eb5fcf0a950ba8::t_69f2cbc6d7b2d7 1-351
+nats-studio/node_modules/@tauri-apps/api/dpi.js
+  s_eb5fcf0a950ba8::t_0e3b24af2189f2 1-402
+nats-studio/node_modules/@tauri-apps/api/event.cjs
+  s_eb5fcf0a950ba8::t_3d296997e9b423 1-232
+nats-studio/node_modules/@tauri-apps/api/event.d.ts
+  s_eb5fcf0a950ba8::t_2446c03546c424 1-220
+nats-studio/node_modules/@tauri-apps/api/event.js
+  s_eb5fcf0a950ba8::t_d4d5f608c49056 1-227
+nats-studio/node_modules/@tauri-apps/api/external/tslib/tslib.es6.cjs
+  s_eb5fcf0a950ba8::t_0583678e573d9b 1-39
+nats-studio/node_modules/@tauri-apps/api/external/tslib/tslib.es6.js
+  s_eb5fcf0a950ba8::t_4975b4df03d6c6 1-36
+nats-studio/node_modules/@tauri-apps/api/image.cjs
+  s_eb5fcf0a950ba8::t_98c82dbb1c4e77 1-194
+nats-studio/node_modules/@tauri-apps/api/image.d.ts
+  s_eb5fcf0a950ba8::t_3134ae7a28cb11 1-189
+nats-studio/node_modules/@tauri-apps/api/image.js
+  s_eb5fcf0a950ba8::t_3b19cb82ff14c8 1-191
+nats-studio/node_modules/@tauri-apps/api/index.cjs
+  s_eb5fcf0a950ba8::t_b56f7cc2f59021 1-29
+nats-studio/node_modules/@tauri-apps/api/index.d.ts
+  s_eb5fcf0a950ba8::t_d6173dd1ea90a9 1-33
+nats-studio/node_modules/@tauri-apps/api/index.js
+  s_eb5fcf0a950ba8::t_66a51d36daae09 1-24
+nats-studio/node_modules/@tauri-apps/api/menu.cjs
+  s_eb5fcf0a950ba8::t_7f226e3f2c6211 1-44
+nats-studio/node_modules/@tauri-apps/api/menu.d.ts
+  s_eb5fcf0a950ba8::t_067737ede32944 1-26
+nats-studio/node_modules/@tauri-apps/api/menu.js
+  s_eb5fcf0a950ba8::t_7b60b94e8996bc 1-30
+nats-studio/node_modules/@tauri-apps/api/menu/base.cjs
+  s_eb5fcf0a950ba8::t_c313cdd7ad26a4 1-115
+nats-studio/node_modules/@tauri-apps/api/menu/base.d.ts
+  s_eb5fcf0a950ba8::t_dc8a811dd2acd5 1-39
+nats-studio/node_modules/@tauri-apps/api/menu/base.js
+  s_eb5fcf0a950ba8::t_aa504244424f7f 1-112
+nats-studio/node_modules/@tauri-apps/api/menu/checkMenuItem.cjs
+  s_eb5fcf0a950ba8::t_d1d5626772a610 1-72
+nats-studio/node_modules/@tauri-apps/api/menu/checkMenuItem.d.ts
+  s_eb5fcf0a950ba8::t_71a6071c0da78b 1-36
+nats-studio/node_modules/@tauri-apps/api/menu/checkMenuItem.js
+  s_eb5fcf0a950ba8::t_b3c34bb15e2ec4 1-70
+nats-studio/node_modules/@tauri-apps/api/menu/iconMenuItem.cjs
+  s_eb5fcf0a950ba8::t_3fb26f744735ce 1-191
+nats-studio/node_modules/@tauri-apps/api/menu/iconMenuItem.d.ts
+  s_eb5fcf0a950ba8::t_837c09976a6ee8 1-164
+nats-studio/node_modules/@tauri-apps/api/menu/iconMenuItem.js
+  s_eb5fcf0a950ba8::t_1b070ba694f683 1-189
+nats-studio/node_modules/@tauri-apps/api/menu/menu.cjs
+  s_eb5fcf0a950ba8::t_9440d55382b3fa 1-240
+nats-studio/node_modules/@tauri-apps/api/menu/menu.d.ts
+  s_eb5fcf0a950ba8::t_2f1685dfc0b9a0 1-178
+nats-studio/node_modules/@tauri-apps/api/menu/menu.js
+  s_eb5fcf0a950ba8::t_d7757505f98d57 1-238
+nats-studio/node_modules/@tauri-apps/api/menu/menuItem.cjs
+  s_eb5fcf0a950ba8::t_78c668973f3d85 1-62
+nats-studio/node_modules/@tauri-apps/api/menu/menuItem.d.ts
+  s_eb5fcf0a950ba8::t_7562874ecb64d9 1-87
+nats-studio/node_modules/@tauri-apps/api/menu/menuItem.js
+  s_eb5fcf0a950ba8::t_181f693edafd97 1-60
+nats-studio/node_modules/@tauri-apps/api/menu/predefinedMenuItem.cjs
+  s_eb5fcf0a950ba8::t_3e4ee587a9e622 1-41
+nats-studio/node_modules/@tauri-apps/api/menu/predefinedMenuItem.d.ts
+  s_eb5fcf0a950ba8::t_e8b75b3fbbd372 1-158
+nats-studio/node_modules/@tauri-apps/api/menu/predefinedMenuItem.js
+  s_eb5fcf0a950ba8::t_4ebdb45b7d3ebf 1-39
+nats-studio/node_modules/@tauri-apps/api/menu/submenu.cjs
+  s_eb5fcf0a950ba8::t_6eb0596cb29cf6 1-203
+nats-studio/node_modules/@tauri-apps/api/menu/submenu.d.ts
+  s_eb5fcf0a950ba8::t_5899c3995bb33c 1-97
+nats-studio/node_modules/@tauri-apps/api/menu/submenu.js
+  s_eb5fcf0a950ba8::t_11ec2065d650a3 1-200
+nats-studio/node_modules/@tauri-apps/api/mocks.cjs
+  s_eb5fcf0a950ba8::t_161d4610589c8d 1-297
+nats-studio/node_modules/@tauri-apps/api/mocks.d.ts
+  s_eb5fcf0a950ba8::t_ccb4e400d69f8e 1-215
+nats-studio/node_modules/@tauri-apps/api/mocks.js
+  s_eb5fcf0a950ba8::t_528ddd394b0193 1-292
+nats-studio/node_modules/@tauri-apps/api/package.json
+  s_eb5fcf0a950ba8::t_2e8fbeceb74e64 1-63
+nats-studio/node_modules/@tauri-apps/api/path.cjs
+  s_eb5fcf0a950ba8::t_58d6e6f987df68 1-825
+nats-studio/node_modules/@tauri-apps/api/path.d.ts
+  s_eb5fcf0a950ba8::t_e819c1d2f6e7b7 1-645
+nats-studio/node_modules/@tauri-apps/api/path.js
+  s_eb5fcf0a950ba8::t_35baea249f52f9 1-791
+nats-studio/node_modules/@tauri-apps/api/tray.cjs
+  s_eb5fcf0a950ba8::t_051bfd767d5511 1-324
+nats-studio/node_modules/@tauri-apps/api/tray.d.ts
+  s_eb5fcf0a950ba8::t_dcad3fdda7e803 1-367
+nats-studio/node_modules/@tauri-apps/api/tray.js
+  s_eb5fcf0a950ba8::t_ef79a2da4c12bf 1-322
+nats-studio/node_modules/@tauri-apps/api/webview.cjs
+  s_eb5fcf0a950ba8::t_0c1c33ef2b9b44 1-713
+nats-studio/node_modules/@tauri-apps/api/webview.d.ts
+  s_eb5fcf0a950ba8::t_6f6b6f238e024f 1-756
+nats-studio/node_modules/@tauri-apps/api/webview.js
+  s_eb5fcf0a950ba8::t_f7ca2594a3e75f 1-709
+nats-studio/node_modules/@tauri-apps/api/webviewWindow.cjs
+  s_eb5fcf0a950ba8::t_374610f581fb73 1-274
+nats-studio/node_modules/@tauri-apps/api/webviewWindow.d.ts
+  s_eb5fcf0a950ba8::t_10b9ff4e2e4490 1-180
+nats-studio/node_modules/@tauri-apps/api/webviewWindow.js
+  s_eb5fcf0a950ba8::t_b4732c45077be3 1-270
+nats-studio/node_modules/@tauri-apps/api/window.cjs
+  s_eb5fcf0a950ba8::t_e721cb8b36e800 1-2495
+nats-studio/node_modules/@tauri-apps/api/window.d.ts
+  s_eb5fcf0a950ba8::t_338b2fd6827029 1-2358
+nats-studio/node_modules/@tauri-apps/api/window.js
+  s_eb5fcf0a950ba8::t_51026ac027b5ac 1-2482
+nats-studio/node_modules/@tauri-apps/cli-darwin-arm64/README.md
+  s_eb5fcf0a950ba8::t_fbdc348ffcde6d 1-3
+nats-studio/node_modules/@tauri-apps/cli-darwin-arm64/package.json
+  s_eb5fcf0a950ba8::t_be4c3662cd61a8 1-33
+nats-studio/node_modules/@tauri-apps/cli/CHANGELOG.md
+  s_eb5fcf0a950ba8::t_bd86781e84a58a 1-2216
+nats-studio/node_modules/@tauri-apps/cli/LICENSE-APACHE-2.0
+  s_eb5fcf0a950ba8::t_a762f0039349c9 1-177
+nats-studio/node_modules/@tauri-apps/cli/LICENSE-MIT
+  s_eb5fcf0a950ba8::t_23f65569e56e75 1-21
+nats-studio/node_modules/@tauri-apps/cli/README.md
+  s_eb5fcf0a950ba8::t_a69845e70c1f74 1-52
+nats-studio/node_modules/@tauri-apps/cli/append-headers.js
+  s_eb5fcf0a950ba8::t_ea4607db5f63d4 1-15
+nats-studio/node_modules/@tauri-apps/cli/config.schema.json
+  s_eb5fcf0a950ba8::t_16da1467b1e889 1-4071
+nats-studio/node_modules/@tauri-apps/cli/index.d.ts
+  s_eb5fcf0a950ba8::t_8f9a6af5068a78 1-9
+nats-studio/node_modules/@tauri-apps/cli/index.js
+  s_eb5fcf0a950ba8::t_f57ed9d0890cc7 1-595
+nats-studio/node_modules/@tauri-apps/cli/main.d.ts
+  s_eb5fcf0a950ba8::t_577fa70304662f 1-11
+nats-studio/node_modules/@tauri-apps/cli/main.js
+  s_eb5fcf0a950ba8::t_92207bfdb5e9bc 1-19
+nats-studio/node_modules/@tauri-apps/cli/package.json
+  s_eb5fcf0a950ba8::t_be8ebdf612abe7 1-80
+nats-studio/node_modules/@tauri-apps/cli/tauri.js
+  s_eb5fcf0a950ba8::t_8154c2788d373b 1-57
+nats-studio/package-lock.json
+  s_eb5fcf0a950ba8::t_210ef09b76e2c7 1-245
+nats-studio/patches/tauri-macros/Cargo.lock
+  s_eb5fcf0a950ba8::t_8500887072c77e 1-2311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "3ca5d4e87217c6ea61fd0659c1b26f64e0902864",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
