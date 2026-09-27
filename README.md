@@ -4,6 +4,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/nats-lens.svg)](https://crates.io/crates/nats-lens)
+[![arXiv](https://img.shields.io/badge/arXiv-2026.nats--lens-b31b1b.svg)](https://arxiv.org/abs/2026.nats-lens)
+
+---
+
+![Architecture](docs/images/architecture.png)
 
 ---
 
@@ -14,6 +19,14 @@ NATS JetStream claims at-least-once delivery. But five common configuration mist
 Standard monitoring tools (Prometheus Blackbox, Datadog, existing NATS dashboards) show throughput metrics. None of them detect *delivery correctness* failures.
 
 **nats-lens detects all five.**
+
+![Violation Timelines](docs/images/violation_timelines.png)
+
+---
+
+## Quick Start
+
+![Quick Start Steps](docs/images/quickstart.png)
 
 ---
 
@@ -114,6 +127,99 @@ Each event is a JSON object:
 curl http://localhost:8080/api/streams
 curl http://localhost:8080/api/history/ORDERS/order-processor
 ```
+
+---
+
+## Receive Violations in Any Language
+
+nats-lens publishes to `nats.lens.health.violations.{stream}.{consumer}`. Subscribe from any NATS client — no code changes to your existing application.
+
+<details>
+<summary><b>Python</b></summary>
+
+```python
+import asyncio, json, nats
+
+async def on_violation(msg):
+    event = json.loads(msg.data)
+    print(f"[{event['severity']}] {event['violation']['type']} on "
+          f"{event['stream_name']}/{event['consumer_name']}")
+    print(f"  Fix: {event['violation']['fix_command']}")
+
+async def main():
+    nc = await nats.connect("nats://localhost:4222")
+    await nc.subscribe("nats.lens.health.violations.>", cb=on_violation)
+    await asyncio.sleep(3600)
+
+asyncio.run(main())
+```
+[Full example →](examples/python/subscribe.py)
+</details>
+
+<details>
+<summary><b>Go</b></summary>
+
+```go
+nc, _ := nats.Connect("nats://localhost:4222")
+nc.Subscribe("nats.lens.health.violations.>", func(msg *nats.Msg) {
+    var event map[string]interface{}
+    json.Unmarshal(msg.Data, &event)
+    v := event["violation"].(map[string]interface{})
+    fmt.Printf("[%s] %s on %s/%s\n  Fix: %s\n",
+        event["severity"], v["type"],
+        event["stream_name"], event["consumer_name"], v["fix_command"])
+})
+select {}
+```
+[Full example →](examples/go/main.go)
+</details>
+
+<details>
+<summary><b>Rust</b></summary>
+
+```rust
+let nc = async_nats::connect("nats://localhost:4222").await?;
+let mut sub = nc.subscribe("nats.lens.health.violations.>").await?;
+while let Some(msg) = sub.next().await {
+    let event: serde_json::Value = serde_json::from_slice(&msg.payload)?;
+    println!("[{}] {} on {}/{}", event["severity"], event["violation"]["type"],
+             event["stream_name"], event["consumer_name"]);
+}
+```
+[Full example →](examples/rust/src/main.rs)
+</details>
+
+<details>
+<summary><b>Node.js</b></summary>
+
+```javascript
+const { connect, StringCodec } = require("nats");
+const nc = await connect({ servers: "nats://localhost:4222" });
+const sub = nc.subscribe("nats.lens.health.violations.>");
+for await (const msg of sub) {
+    const event = JSON.parse(StringCodec().decode(msg.data));
+    console.log(`[${event.severity}] ${event.violation.type} → ${event.violation.fix_command}`);
+}
+```
+[Full example →](examples/nodejs/subscribe.js)
+</details>
+
+<details>
+<summary><b>Java</b></summary>
+
+```java
+Dispatcher d = nc.createDispatcher(msg -> {
+    JSONObject event = new JSONObject(new String(msg.getData()));
+    System.out.printf("[%s] %s on %s/%s%n  Fix: %s%n",
+        event.getString("severity"),
+        event.getJSONObject("violation").getString("type"),
+        event.getString("stream_name"), event.getString("consumer_name"),
+        event.getJSONObject("violation").optString("fix_command"));
+});
+d.subscribe("nats.lens.health.violations.>");
+```
+[Full example →](examples/java/Subscribe.java)
+</details>
 
 ---
 
