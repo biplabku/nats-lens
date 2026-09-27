@@ -1,0 +1,27 @@
+.gitignore
+  s_eb5fcf0a950ba8::t_e1752c90737db4 1-7
+Cargo.lock
+  s_eb5fcf0a950ba8::t_8332e7878b4cb0 1-2305
+eval-multilang/go/go.mod
+  s_eb5fcf0a950ba8::t_9080159544103e 1-13
+eval-multilang/go/go.sum
+  s_eb5fcf0a950ba8::t_9da357ee534425 1-12
+paper/SUBMISSION_CHECKLIST.md
+  s_eb5fcf0a950ba8::t_949ad5b44b95e3 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "a4a961add60cfee24e35e3c89d4987500e6146f9",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
