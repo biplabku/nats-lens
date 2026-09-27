@@ -1,0 +1,31 @@
+examples/nodejs/subscribe.js
+  s_eb5fcf0a950ba8::t_09e7056957a6ae 1-19
+examples/rust/src/main.rs
+  s_eb5fcf0a950ba8::t_5dbd7e4002c674 1-24
+examples/go/main.go
+  s_eb5fcf0a950ba8::t_95c0ab803044f6 1-45
+examples/java/Subscribe.java
+  s_eb5fcf0a950ba8::t_0ffe687848675b 1-36
+README.md
+  s_eb5fcf0a950ba8::t_537c9b2812691f 7-11,23-29
+  s_eb5fcf0a950ba8::t_508163f0cdefc0 133-225
+  s_eb5fcf0a950ba8::t_0178e8cf42f5b3 30
+examples/python/subscribe.py
+  s_eb5fcf0a950ba8::t_96ea4d00980cf2 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "42f8bcd022d61cb630720db3bdbdfbc8d707dc3e",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
