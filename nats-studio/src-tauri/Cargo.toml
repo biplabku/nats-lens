@@ -1,0 +1,27 @@
+[package]
+name    = "nats-studio"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "nats_studio_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+tauri               = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell  = "2"
+tauri-plugin-dialog = "2"
+serde          = { version = "1", features = ["derive"] }
+serde_json     = "1"
+tokio          = { version = "1", features = ["full"] }
+nats-lens-core = { path = "../../crates/core" }
+async-nats     = "0.38"
+tracing        = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.release]
+opt-level = "s"   # optimize for size in desktop app
+strip = true

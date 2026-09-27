@@ -1,0 +1,57 @@
+# 3-node JetStream cluster for multi-node evaluation (paper Section 5.8)
+# All nodes on ports 4230-4232 to avoid conflict with single-node setup
+
+services:
+
+  nats-1:
+    image: nats:2.10-alpine
+    container_name: nats-cluster-1
+    command: ["-c", "/etc/nats/nats.conf"]
+    ports:
+      - "4230:4222"
+      - "8230:8222"
+    volumes:
+      - ./nats-cluster-n1.conf:/etc/nats/nats.conf:ro
+      - nats-cluster-1-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  nats-2:
+    image: nats:2.10-alpine
+    container_name: nats-cluster-2
+    command: ["-c", "/etc/nats/nats.conf"]
+    ports:
+      - "4231:4222"
+      - "8231:8222"
+    volumes:
+      - ./nats-cluster-n2.conf:/etc/nats/nats.conf:ro
+      - nats-cluster-2-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  nats-3:
+    image: nats:2.10-alpine
+    container_name: nats-cluster-3
+    command: ["-c", "/etc/nats/nats.conf"]
+    ports:
+      - "4232:4222"
+      - "8232:8222"
+    volumes:
+      - ./nats-cluster-n3.conf:/etc/nats/nats.conf:ro
+      - nats-cluster-3-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  nats-cluster-1-data:
+  nats-cluster-2-data:
+  nats-cluster-3-data:

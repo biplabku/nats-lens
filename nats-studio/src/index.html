@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nats-studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Design system ── */
+    :root {
+      --bg:#080d18; --surface:#0e1525; --raised:#152033; --hover:#1c2a42;
+      --border:#1e2d45; --soft:#162035;
+      --t1:#e8edf5; --t2:#7a8fa8; --t3:#3d5168;
+      --cyan:#22d3ee; --cyan-d:#0e7490;
+      --green:#10b981; --amber:#f59e0b; --red:#f43f5e;
+      --r:8px; --r-sm:5px;
+      --font:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{
+      height:100%; width:100%;
+      margin:0; padding:0;
+      overflow:hidden;
+    }
+    body{
+      font-family:var(--font);font-size:13px;line-height:1.5;
+      background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased;
+    }
+    button{font-family:inherit;cursor:pointer;border:none;background:none}
+    input{
+      font-family:inherit;background:var(--raised);border:1px solid var(--border);
+      border-radius:var(--r-sm);color:var(--t1);padding:7px 10px;font-size:12px;
+      outline:none;transition:border .15s;width:100%;
+    }
+    input:focus{border-color:var(--cyan)}
+    input::placeholder{color:var(--t3)}
+
+    /* ── Connect screen ── */
+    .connect-screen{
+      width:100%; height:100%;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:20px; overflow-y:auto;
+      padding:32px 16px;
+    }
+    .connect-logo{display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0}
+    .connect-mark{
+      width:56px;height:56px;
+      background:linear-gradient(135deg,var(--cyan),var(--cyan-d));
+      border-radius:14px;display:grid;place-items:center;
+      font-size:26px;font-weight:800;color:#000;flex-shrink:0;
+    }
+    .connect-title{font-size:24px;font-weight:700;letter-spacing:-.5px}
+    .connect-sub{font-size:13px;color:var(--t2)}
+    .connect-form{
+      width:100%;max-width:380px;
+      display:flex;flex-direction:column;gap:14px;
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--r);padding:22px;
+      flex-shrink:0;
+    }
+    .field-group{display:flex;flex-direction:column;gap:5px}
+    .field-label{font-size:11px;font-weight:600;color:var(--t2);letter-spacing:.4px;text-transform:uppercase}
+    .field-row{display:flex;gap:8px}
+    .field-row input{flex:1;min-width:0}
+    .connect-btn{
+      padding:10px;border-radius:var(--r-sm);
+      background:var(--cyan);color:#000;font-weight:700;font-size:13px;
+      letter-spacing:.2px;transition:opacity .15s;width:100%;
+    }
+    .connect-btn:hover{opacity:.88}
+    .connect-btn:disabled{opacity:.4;cursor:default}
+    .conn-err{font-size:12px;color:var(--red);text-align:center;padding:4px 0}
+
+    /* Recent connections */
+    .recent-section{width:100%;max-width:380px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+    .recent-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:0 2px}
+    .recent-list{display:flex;flex-direction:column;gap:4px}
+    .recent-item{
+      display:flex;align-items:center;gap:8px;padding:7px 10px;
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
+      cursor:pointer;font-size:11px;font-family:var(--mono);color:var(--t2);
+      transition:all .12s;
+    }
+    .recent-item:hover{background:var(--hover);color:var(--t1);border-color:var(--cyan-d)}
+    .recent-icon{font-size:10px;opacity:.6;flex-shrink:0}
+
+    /* ── App layout ── */
+    .app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:260px 1fr;grid-template-areas:"top top" "side main";height:100vh;overflow:hidden}
+    .top{grid-area:top;display:flex;align-items:center;gap:10px;padding:0 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+    .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;letter-spacing:-.3px}
+    .logo-mark{width:26px;height:26px;background:linear-gradient(135deg,var(--cyan),var(--cyan-d));border-radius:6px;display:grid;place-items:center;font-size:13px;font-weight:800;color:#000}
+    .top-div{width:1px;height:18px;background:var(--border);margin:0 2px}
+    .top-sub{font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.5px;text-transform:uppercase}
+    .top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+    .disc-btn{padding:5px 12px;background:var(--raised);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--t2);transition:all .12s}
+    .disc-btn:hover{color:var(--t1);border-color:var(--t2)}
+    .icon-btn{padding:5px 9px;background:var(--raised);border:1px solid var(--border);border-radius:20px;font-size:13px;color:var(--t2);transition:all .12s;display:flex;align-items:center}
+    .icon-btn:hover{color:var(--t1);border-color:var(--t2)}
+    .conn-badge{display:flex;align-items:center;gap:5px;background:var(--raised);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t2);font-family:var(--mono)}
+    .cdot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(16,185,129,.5)}
+    .ts{font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums}
+
+    .side{grid-area:side;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    .side-head{padding:14px 16px 10px;border-bottom:1px solid var(--soft);display:flex;align-items:center;justify-content:space-between}
+    .side-lbl{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+    .side-cnt{font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums}
+    .slist{flex:1;overflow-y:auto;padding:6px 8px}
+    .slist::-webkit-scrollbar{width:3px}
+    .slist::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .sitem{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:background .1s;user-select:none}
+    .sitem:hover{background:var(--hover)}
+    .sitem.sel{background:rgba(34,211,238,.06)}
+    .sitem.audit-nav{border-top:1px solid var(--soft);margin-top:4px}
+    .pip{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--t3);transition:background .3s}
+    .pip.healthy{background:var(--green);box-shadow:0 0 5px rgba(16,185,129,.35)}
+    .pip.warning{background:var(--amber);box-shadow:0 0 5px rgba(245,158,11,.35)}
+    .pip.critical{background:var(--red);box-shadow:0 0 5px rgba(244,63,94,.35);animation:blink 1.4s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+    .sinfo{flex:1;min-width:0}
+    .sname{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .smeta{font-size:11px;color:var(--t2);margin-top:1px}
+    .badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;letter-spacing:.3px;flex-shrink:0}
+    .badge.healthy{background:rgba(16,185,129,.1);color:var(--green)}
+    .badge.warning{background:rgba(245,158,11,.1);color:var(--amber)}
+    .badge.critical{background:rgba(244,63,94,.1);color:var(--red)}
+
+    /* Sidebar audit section */
+    .side-audit{padding:8px;border-top:1px solid var(--soft);flex-shrink:0}
+    .audit-nav-btn{
+      width:100%;display:flex;align-items:center;gap:9px;padding:8px 10px;
+      border-radius:var(--r-sm);cursor:pointer;transition:background .1s;
+      font-size:12px;color:var(--t2);
+    }
+    .audit-nav-btn:hover{background:var(--hover);color:var(--t1)}
+    .audit-nav-btn.sel{background:rgba(34,211,238,.06);color:var(--t1)}
+    .audit-icon{font-size:14px}
+
+    .main{grid-area:main;display:flex;flex-direction:column;overflow:hidden}
+    .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+    .empty-ico{width:52px;height:52px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;font-size:22px;color:var(--t3)}
+    .empty h3{font-size:13px;font-weight:600;color:var(--t2)}
+    .empty p{font-size:12px;color:var(--t3)}
+
+    .detail{flex:1;overflow-y:auto;padding:22px 24px;display:flex;flex-direction:column;gap:18px}
+    .detail::-webkit-scrollbar{width:3px}
+    .detail::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .dhead{display:flex;align-items:flex-start;gap:10px}
+    .dtitle{font-size:18px;font-weight:700;letter-spacing:-.4px}
+    .dsub{font-size:12px;color:var(--t2);margin-top:2px;font-family:var(--mono)}
+
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+    .chead{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;border-bottom:1px solid var(--soft)}
+    .ctitle{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--t2)}
+    .ccount{font-size:11px;color:var(--t3)}
+
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:9px 16px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);border-bottom:1px solid var(--soft)}
+    th:not(:first-child){text-align:right}
+    td{padding:10px 16px;border-bottom:1px solid var(--soft);vertical-align:middle;font-variant-numeric:tabular-nums}
+    td:not(:first-child){text-align:right}
+    tr:last-child td{border-bottom:none}
+    tbody tr{transition:background .08s}
+    tbody tr:hover{background:var(--hover);cursor:pointer}
+    .cname{font-weight:500;font-family:var(--mono);font-size:12px}
+    .num{font-family:var(--mono);font-size:12px}
+    .hi-a{color:var(--amber)}.hi-r{color:var(--red)}
+    .bar-wrap{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+    .bar-bg{width:52px;height:4px;background:var(--raised);border-radius:2px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:2px;transition:width .3s;background:var(--t3)}
+    .bar-fill.w{background:var(--amber)}.bar-fill.c{background:var(--red)}
+    .bar-pct{font-size:11px;font-family:var(--mono);color:var(--t2);min-width:28px;text-align:right}
+    .sdot{display:inline-block;width:7px;height:7px;border-radius:50%}
+    .sdot.ok{background:var(--green)}.sdot.w{background:var(--amber)}.sdot.c{background:var(--red);animation:blink 1.4s infinite}
+
+    .vlist{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+    .vcard{border-radius:var(--r-sm);border:1px solid;overflow:hidden;animation:vi .18s ease-out}
+    @keyframes vi{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+    .vcard.critical{border-color:rgba(244,63,94,.22);background:linear-gradient(135deg,rgba(244,63,94,.055),rgba(244,63,94,.015))}
+    .vcard.warning{border-color:rgba(245,158,11,.18);background:linear-gradient(135deg,rgba(245,158,11,.05),rgba(245,158,11,.015))}
+    .vin{padding:11px 13px}
+    .vrow{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+    .vpill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono)}
+    .vcard.critical .vpill{background:rgba(244,63,94,.18);color:var(--red)}
+    .vcard.warning .vpill{background:rgba(245,158,11,.18);color:var(--amber)}
+    .vcons{font-size:11px;color:var(--t2);font-family:var(--mono)}
+    .vtime{font-size:11px;color:var(--t3);margin-left:auto}
+    .vdesc{font-size:12px;color:var(--t1);line-height:1.5;margin-bottom:8px}
+    .fixrow{display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px}
+    .fixlbl{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap}
+    .fixcmd{font-size:11px;font-family:var(--mono);color:var(--cyan);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .copybtn{flex-shrink:0;padding:3px 8px;background:var(--raised);border:1px solid var(--border);border-radius:4px;font-size:10px;font-weight:600;color:var(--t2);transition:all .12s}
+    .copybtn:hover{background:var(--hover);color:var(--t1)}
+    .copybtn.ok{color:var(--green);border-color:rgba(16,185,129,.25)}
+    .applybtn{flex-shrink:0;padding:3px 8px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);border-radius:4px;font-size:10px;font-weight:600;color:var(--cyan);transition:all .12s}
+    .applybtn:hover{background:rgba(34,211,238,.15)}
+    .applybtn:disabled{opacity:.4;cursor:default}
+    .applybtn.ok{color:var(--green);border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.08)}
+    .applybtn.err{color:var(--red);border-color:rgba(244,63,94,.25);background:rgba(244,63,94,.08)}
+    .vnil{display:flex;align-items:center;gap:7px;padding:12px 14px;font-size:12px;color:var(--t2)}
+    .vnil-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+    .feed{border-top:1px solid var(--border);background:var(--surface);height:36px;display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
+    .flbl{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);flex-shrink:0}
+    .fldot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.4s infinite}
+    .fevents{flex:1;overflow:hidden;display:flex;align-items:center;gap:14px}
+    .fevent{display:flex;align-items:center;gap:5px;flex-shrink:0;font-size:11px;animation:vi .25s ease-out}
+    .fets{color:var(--t3);font-family:var(--mono);font-size:10px}
+    .festream{font-weight:600;font-family:var(--mono);color:var(--t1)}
+    .fesep{color:var(--t3)}
+    .fetype{font-weight:600;font-size:10px;padding:1px 5px;border-radius:3px}
+    .fetype.critical{color:var(--red);background:rgba(244,63,94,.1)}
+    .fetype.warning{color:var(--amber);background:rgba(245,158,11,.1)}
+    .fnil{font-size:11px;color:var(--t3);font-style:italic}
+    .fcnt{font-size:11px;color:var(--t3);margin-left:auto;flex-shrink:0}
+
+    /* ── Audit view ── */
+    .aview{flex:1;overflow-y:auto;padding:22px 24px;display:flex;flex-direction:column;gap:18px}
+    .aview::-webkit-scrollbar{width:3px}
+    .aview::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .ahead{display:flex;align-items:center;gap:12px}
+    .atitle{font-size:18px;font-weight:700;letter-spacing:-.4px}
+    .run-audit-btn{
+      padding:7px 14px;background:var(--cyan);color:#000;font-weight:700;
+      font-size:12px;border-radius:var(--r-sm);transition:opacity .15s;
+    }
+    .run-audit-btn:hover{opacity:.88}
+    .run-audit-btn:disabled{opacity:.4;cursor:default}
+    .audit-stats{display:flex;gap:12px;flex-wrap:wrap}
+    .astat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:90px}
+    .astat-n{font-size:20px;font-weight:700;font-family:var(--mono)}
+    .astat-n.red{color:var(--red)}.astat-n.amber{color:var(--amber)}.astat-n.cyan{color:var(--cyan)}
+    .astat-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3)}
+    .audit-findings{display:flex;flex-direction:column;gap:8px}
+    .af-card{border-radius:var(--r-sm);border:1px solid;padding:11px 13px;animation:vi .18s ease-out}
+    .af-card.CRITICAL{border-color:rgba(244,63,94,.22);background:linear-gradient(135deg,rgba(244,63,94,.055),rgba(244,63,94,.015))}
+    .af-card.WARNING{border-color:rgba(245,158,11,.18);background:linear-gradient(135deg,rgba(245,158,11,.05),rgba(245,158,11,.015))}
+    .af-card.INFO{border-color:rgba(34,211,238,.14);background:rgba(34,211,238,.015)}
+    .af-row{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+    .af-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono)}
+    .af-card.CRITICAL .af-pill{background:rgba(244,63,94,.18);color:var(--red)}
+    .af-card.WARNING .af-pill{background:rgba(245,158,11,.18);color:var(--amber)}
+    .af-card.INFO .af-pill{background:rgba(34,211,238,.12);color:var(--cyan)}
+    .af-cons{font-size:11px;color:var(--t2);font-family:var(--mono)}
+    .af-rule{font-size:10px;font-weight:600;color:var(--t3);margin-left:auto;letter-spacing:.3px}
+    .af-detail{font-size:12px;color:var(--t1);line-height:1.5;margin-bottom:8px}
+    .af-nil{padding:20px;text-align:center;color:var(--t2);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .af-nil-icon{font-size:28px}
+
+    /* ── Settings drawer ── */
+    .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99;display:none}
+    .settings-overlay.open{display:block}
+    .settings-drawer{
+      position:fixed;top:0;right:0;width:300px;height:100vh;
+      background:var(--surface);border-left:1px solid var(--border);
+      z-index:100;transform:translateX(100%);
+      transition:transform .25s cubic-bezier(.4,0,.2,1);
+      display:flex;flex-direction:column;
+    }
+    .settings-drawer.open{transform:translateX(0)}
+    .drawer-head{
+      padding:16px 20px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+    }
+    .drawer-title{font-size:14px;font-weight:600}
+    .drawer-close{
+      padding:4px 8px;background:var(--raised);border:1px solid var(--border);
+      border-radius:4px;font-size:11px;color:var(--t2);transition:all .12s;
+    }
+    .drawer-close:hover{color:var(--t1)}
+    .drawer-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:22px}
+    .drawer-section{display:flex;flex-direction:column;gap:8px}
+    .drawer-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t3)}
+    .drawer-val{font-size:12px;color:var(--t1);font-family:var(--mono)}
+    .drawer-div{height:1px;background:var(--border);margin:2px 0}
+    .slider-row{display:flex;align-items:center;gap:10px}
+    .slider-row input[type=range]{flex:1;accent-color:var(--cyan);height:3px}
+    .slider-val{font-size:12px;font-family:var(--mono);color:var(--cyan);min-width:28px;text-align:right}
+    .export-btn{
+      padding:7px 12px;background:var(--raised);border:1px solid var(--border);
+      border-radius:var(--r-sm);font-size:12px;color:var(--t1);transition:all .12s;
+      text-align:left;
+    }
+    .export-btn:hover{background:var(--hover);border-color:var(--t3)}
+
+    /* ── History modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:150;display:none;align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+      padding:24px;width:580px;max-width:92vw;
+    }
+    .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .modal-title{font-size:15px;font-weight:700}
+    .modal-sub{font-size:11px;color:var(--t2);font-family:var(--mono);margin-top:2px}
+    .modal-close{
+      padding:4px 8px;background:var(--raised);border:1px solid var(--border);
+      border-radius:4px;font-size:11px;color:var(--t2);transition:all .12s;
+    }
+    .modal-close:hover{color:var(--t1)}
+    .modal-chart{position:relative;height:200px;margin-top:8px}
+    .modal-empty{padding:40px;text-align:center;color:var(--t3);font-size:12px}
+
+    /* ── Toasts ── */
+    #toasts{position:fixed;top:58px;right:14px;display:flex;flex-direction:column;gap:7px;z-index:200;pointer-events:none}
+    .toast{background:var(--raised);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--r-sm);padding:10px 13px;min-width:270px;max-width:340px;pointer-events:all;animation:vi .18s ease-out;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+    .toast.warning{border-left-color:var(--amber)}
+    .toast.success{border-left-color:var(--green)}
+    .toast-t{font-size:12px;font-weight:600;margin-bottom:2px}
+    .toast-b{font-size:11px;color:var(--t2);line-height:1.4}
+    .toast-x{animation:tx .18s ease-in forwards}
+    @keyframes tx{to{opacity:0;transform:translateX(8px)}}
+    .hidden{display:none!important}
+  </style>
+</head>
+<body>
+
+<!-- Connect screen -->
+<div class="connect-screen" id="cscreen">
+  <div class="connect-logo">
+    <div class="connect-mark">N</div>
+    <div class="connect-title">nats-studio</div>
+    <div class="connect-sub">NATS JetStream Health Monitor</div>
+  </div>
+  <div class="connect-form">
+    <div class="field-group">
+      <div class="field-label">NATS Server URL</div>
+      <input id="nurl" type="text" value="nats://localhost:4222" placeholder="nats://localhost:4222">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Poll Interval (seconds)</div>
+      <input id="npoll" type="number" value="5" min="1" max="60">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Authentication (optional)</div>
+      <div class="field-row">
+        <input id="nuser" type="text" placeholder="Username">
+        <input id="npass" type="password" placeholder="Password">
+      </div>
+    </div>
+    <div class="field-group">
+      <div class="field-label">Credentials File (optional)</div>
+      <input id="ncreds" type="text" placeholder="/path/to/user.creds">
+    </div>
+    <button class="connect-btn" id="cbtn" onclick="doConnect()">Connect</button>
+    <div class="conn-err hidden" id="cerr"></div>
+  </div>
+  <!-- Recent connections -->
+  <div class="recent-section" id="recentSection" style="display:none">
+    <div class="recent-lbl">Recent</div>
+    <div class="recent-list" id="recentList"></div>
+  </div>
+</div>
+
+<!-- Main app (hidden until connected) -->
+<div class="app hidden" id="app">
+  <header class="top">
+    <div class="logo"><div class="logo-mark">N</div>nats-studio</div>
+    <div class="top-div"></div>
+    <span class="top-sub">JetStream Monitor</span>
+    <div class="top-right">
+      <div class="conn-badge"><div class="cdot"></div><span id="aurl">—</span></div>
+      <span class="ts" id="ats"></span>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
+      <button class="disc-btn" onclick="doDisconnect()">Disconnect</button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <div class="side-head">
+      <span class="side-lbl">Streams</span>
+      <span class="side-cnt" id="scnt">—</span>
+    </div>
+    <div class="slist" id="slist"></div>
+    <!-- Audit nav -->
+    <div class="side-audit">
+      <button class="audit-nav-btn" id="auditNavBtn" onclick="showAuditView()">
+        <span class="audit-icon">🔍</span>
+        <div class="sinfo">
+          <div class="sname">Audit</div>
+          <div class="smeta">Configuration scan</div>
+        </div>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- Empty state -->
+    <div class="empty" id="estate">
+      <div class="empty-ico">⌖</div>
+      <h3>Select a stream</h3>
+      <p>Auto-refreshes every poll interval</p>
+    </div>
+
+    <!-- Stream detail view -->
+    <div class="detail hidden" id="dview">
+      <div class="dhead">
+        <div>
+          <div class="dtitle" id="dname">—</div>
+          <div class="dsub"   id="dmeta">—</div>
+        </div>
+        <div id="dbadge" style="margin-top:4px"></div>
+      </div>
+      <div class="card">
+        <div class="chead"><span class="ctitle">Consumers</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Lag</th><th>Redeliv/min</th>
+              <th>Ack Pending</th><th>Trend</th><th style="text-align:center">Health</th>
+            </tr>
+          </thead>
+          <tbody id="ctbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="chead">
+          <span class="ctitle">Violations</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="ccount" id="vcnt"></span>
+            <button class="copybtn" style="font-size:10px" onclick="exportCsv()">Export CSV</button>
+          </div>
+        </div>
+        <div id="vbody">
+          <div class="vnil" id="vnil"><div class="vnil-dot"></div>All consumers healthy</div>
+          <div class="vlist" id="vcards"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit view -->
+    <div class="aview hidden" id="aview">
+      <div class="ahead">
+        <div class="atitle">Configuration Audit</div>
+        <button class="run-audit-btn" id="runAuditBtn" onclick="runAudit()">Run Audit</button>
+      </div>
+      <div class="audit-stats hidden" id="auditStats">
+        <div class="astat"><div class="astat-n red" id="auditCritical">0</div><div class="astat-l">Critical</div></div>
+        <div class="astat"><div class="astat-n amber" id="auditWarning">0</div><div class="astat-l">Warning</div></div>
+        <div class="astat"><div class="astat-n cyan" id="auditInfo">0</div><div class="astat-l">Info</div></div>
+        <div class="astat"><div class="astat-n" id="auditTotal" style="color:var(--t1)">0</div><div class="astat-l">Total</div></div>
+      </div>
+      <div class="audit-findings" id="auditFindings">
+        <div class="af-nil">
+          <div class="af-nil-icon">🔍</div>
+          <div>Click <strong>Run Audit</strong> to scan all streams and consumers<br>for JetStream configuration issues.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feed">
+      <div class="flbl"><div class="fldot"></div>Live</div>
+      <div class="fevents" id="fevents"><span class="fnil">Waiting…</span></div>
+      <span class="fcnt" id="fcnt"></span>
+    </div>
+  </main>
+</div>
+
+<!-- Settings overlay + drawer -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="settings-drawer" id="settingsDrawer">
+  <div class="drawer-head">
+    <div class="drawer-title">Settings</div>
+    <button class="drawer-close" onclick="closeSettings()">✕ Close</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">
+      <div class="drawer-lbl">Connection</div>
+      <div class="drawer-val" id="settingsUrl">—</div>
+    </div>
+    <div class="drawer-div"></div>
+    <div class="drawer-section">
+      <div class="drawer-lbl">Poll Interval</div>
+      <div class="slider-row">
+        <input type="range" id="pollSlider" min="1" max="60" value="5" oninput="onPollSlide(this.value)">
+        <span class="slider-val" id="pollSliderVal">5s</span>
+      </div>
+      <div style="font-size:11px;color:var(--t3)">Changes take effect after reconnect</div>
+    </div>
+    <div class="drawer-div"></div>
+    <div class="drawer-section">
+      <div class="drawer-lbl">Export</div>
+      <button class="export-btn" onclick="exportCsv();closeSettings()">⬇ Export Violations as CSV</button>
+    </div>
+    <div class="drawer-div"></div>
+    <div class="drawer-section">
+      <div class="drawer-lbl">About</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.6">
+        nats-studio v0.1.0<br>
+        Postman for NATS JetStream<br>
+        Built with Tauri 2 + Rust
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- History chart modal -->
+<div class="modal-overlay" id="histModal" onclick="closeHistModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="histModalTitle">Lag History</div>
+        <div class="modal-sub" id="histModalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeHistModal()">✕ Close</button>
+    </div>
+    <div class="modal-chart">
+      <canvas id="histModalChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// Use Tauri's global API (withGlobalTauri: true in tauri.conf.json)
+// This avoids needing a bundler — __TAURI__ is injected by the Tauri runtime.
+function invoke(cmd, args) {
+  return window.__TAURI__.core.invoke(cmd, args);
+}
+async function listen(event, handler) {
+  return window.__TAURI__.event.listen(event, e => handler(e));
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+const RECENT_KEY = 'nats-studio-recent';
+const MAX_RECENT = 3;
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = { streams:[], sel:null, view:'stream' };
+const charts = {};
+let histModalChart = null;
+let totalEv = 0;
+let pollTimer;
+let connectedUrl = '';
+let pollIntervalSecs = 5;
+let currentViolations = [];
+const _vdata = {};  // keyed by violation card ID
+let auditFindings = [];
+
+// ── Recent connections ─────────────────────────────────────────────────────────
+
+function loadRecents() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; }
+}
+
+function saveRecent(url) {
+  const list = loadRecents().filter(x => x !== url);
+  list.unshift(url);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
+}
+
+function renderRecents() {
+  const list = loadRecents();
+  const sec  = document.getElementById('recentSection');
+  const box  = document.getElementById('recentList');
+  if (!list.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  box.innerHTML = list.map(url =>
+    `<div class="recent-item" onclick="window.useRecent(${JSON.stringify(url)})">
+      <span class="recent-icon">↩</span>${e(url)}
+    </div>`
+  ).join('');
+}
+
+window.useRecent = url => {
+  document.getElementById('nurl').value = url;
+};
+
+// ── Connect / disconnect ───────────────────────────────────────────────────────
+
+window.doConnect = async () => {
+  const url   = document.getElementById('nurl').value.trim();
+  const poll  = parseInt(document.getElementById('npoll').value) || 5;
+  const btn   = document.getElementById('cbtn');
+  const err   = document.getElementById('cerr');
+  err.classList.add('hidden');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  try {
+    await invoke('connect', { args: { nats_url: url, poll_interval: poll } });
+    connectedUrl       = url;
+    pollIntervalSecs   = poll;
+    document.getElementById('aurl').textContent = url;
+    document.getElementById('settingsUrl').textContent = url;
+    document.getElementById('pollSlider').value  = poll;
+    document.getElementById('pollSliderVal').textContent = poll + 's';
+    saveRecent(url);
+    document.getElementById('cscreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    await load();
+    pollTimer = setInterval(load, poll * 1000);
+    await listen('violation', ev => {
+      totalEv++;
+      feedEv(ev.payload);
+      showToast(ev.payload);
+      load();
+    });
+  } catch(ex) {
+    err.textContent = String(ex);
+    err.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Connect';
+  }
+};
+
+window.doDisconnect = async () => {
+  clearInterval(pollTimer);
+  try { await invoke('disconnect'); } catch(_) {}
+  document.getElementById('cscreen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('cbtn').disabled = false;
+  document.getElementById('cbtn').textContent = 'Connect';
+  state.streams = []; state.sel = null; state.view = 'stream';
+  totalEv = 0; currentViolations = [];
+  renderRecents();
+};
+
+// ── Poll / load ────────────────────────────────────────────────────────────────
+
+async function load() {
+  try {
+    state.streams = await invoke('get_streams') || [];
+    sidebar();
+    if (state.sel) {
+      const s = state.streams.find(x => x.stream_name === state.sel);
+      if (s) detail(s);
+    }
+    const t = new Date();
+    document.getElementById('ats').textContent =
+      `updated ${t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  } catch(_) {}
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────────
+
+function sidebar() {
+  const list = document.getElementById('slist');
+  const cnt  = document.getElementById('scnt');
+  cnt.textContent = `${state.streams.length} stream${state.streams.length!==1?'s':''}`;
+  if (!state.streams.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">No streams</div>';
+    return;
+  }
+  list.innerHTML = state.streams.map(s => {
+    const h = (s.health||'healthy').toLowerCase();
+    const v = (s.consumers||[]).flatMap(c=>c.violations||[]).length;
+    const n = s.consumers?.length ?? 0;
+    const sel = state.sel === s.stream_name && state.view === 'stream';
+    return `<div class="sitem${sel?' sel':''}" onclick="pick(${JSON.stringify(s.stream_name)})">
+      <div class="pip ${h}"></div>
+      <div class="sinfo">
+        <div class="sname">${e(s.stream_name)}</div>
+        <div class="smeta">${n} consumer${n!==1?'s':''}${v?` · ${v} violation${v!==1?'s':''}`:''}</div>
+      </div>
+      <span class="badge ${h}">${cap(h)}</span>
+    </div>`;
+  }).join('');
+  // Audit nav button selection state
+  document.getElementById('auditNavBtn').classList.toggle('sel', state.view === 'audit');
+}
+
+window.pick = name => {
+  state.sel  = name;
+  state.view = 'stream';
+  sidebar();
+  const s = state.streams.find(x => x.stream_name === name);
+  if (!s) return;
+  document.getElementById('estate').classList.add('hidden');
+  document.getElementById('aview').classList.add('hidden');
+  document.getElementById('dview').classList.remove('hidden');
+  detail(s);
+};
+
+// ── Stream detail ──────────────────────────────────────────────────────────────
+
+function detail(s) {
+  const st = s.state||{};
+  document.getElementById('dname').textContent = s.stream_name;
+  document.getElementById('dmeta').textContent =
+    `${fmt(st.messages??0)} msgs · seq ${fmt(st.first_seq??0)}–${fmt(st.last_seq??0)}`;
+  const h = (s.health||'healthy').toLowerCase();
+  document.getElementById('dbadge').innerHTML = `<span class="badge ${h}">${cap(h)}</span>`;
+  consumers(s.stream_name, s.consumers||[]);
+  const vs = (s.consumers||[]).flatMap(c=>(c.violations||[]).map(v=>({...v,_con:c.consumer_name})));
+  currentViolations = vs;
+  violations(vs);
+}
+
+function consumers(sn, cs) {
+  const tb = document.getElementById('ctbody');
+  if (!cs.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:18px">No consumers</td></tr>`;
+    return;
+  }
+  tb.innerHTML = cs.map(c => {
+    const h   = (c.health||'healthy').toLowerCase();
+    const lag = c.lag ?? 0;
+    const lc  = lag>1000?'hi-r':lag>100?'hi-a':'';
+    const rd  = (c.redeliveries_per_min||0).toFixed(1);
+    const rc  = parseFloat(rd)>5?'hi-r':'';
+    const sn2 = c.snapshot||{};
+    const mp  = sn2.max_ack_pending||1;
+    const ap  = sn2.num_ack_pending||0;
+    const pct = Math.round(ap/mp*100);
+    const bc  = pct>=95?'c':pct>=80?'w':'';
+    const dc  = h==='critical'?'c':h==='warning'?'w':'ok';
+    const cid = `s${sn}_${c.consumer_name}`.replace(/\W/g,'_');
+    return `<tr onclick="openHistModal(${JSON.stringify(sn)},${JSON.stringify(c.consumer_name)})">
+      <td><span class="cname">${e(c.consumer_name)}</span></td>
+      <td><span class="num ${lc}">${fmt(lag)}</span></td>
+      <td><span class="num ${rc}">${rd}</span></td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill ${bc}" style="width:${pct}%"></div></div><span class="bar-pct">${pct}%</span></div></td>
+      <td style="text-align:right"><canvas id="${cid}" width="68" height="26"></canvas></td>
+      <td style="text-align:center"><div class="sdot ${dc}"></div></td>
+    </tr>`;
+  }).join('');
+  requestAnimationFrame(() =>
+    cs.forEach(c => spark(`s${sn}_${c.consumer_name}`.replace(/\W/g,'_'), sn, c.consumer_name, c.health))
+  );
+}
+
+async function spark(id, sn, cn, health) {
+  try {
+    const d = await invoke('get_history', { stream: sn, consumer: cn });
+    if (!Array.isArray(d) || d.length < 2) return;
+    const lags = d.map(x => x.lag || x.num_pending || 0);
+    const col  = health==='critical'?'#f43f5e':health==='warning'?'#f59e0b':'#10b981';
+    if (charts[id]) charts[id].destroy();
+    const canvas = document.getElementById(id); if (!canvas) return;
+    charts[id] = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: lags.map((_,i) => i),
+        datasets: [{data:lags,borderColor:col,borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:col+'15'}]
+      },
+      options: {responsive:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false,min:0}}}
+    });
+  } catch(_) {}
+}
+
+// ── Violations ─────────────────────────────────────────────────────────────────
+
+function violations(vs) {
+  const vnil  = document.getElementById('vnil');
+  const vcnt  = document.getElementById('vcnt');
+  const cards = document.getElementById('vcards');
+  vcnt.textContent = vs.length ? `${vs.length} active` : '';
+  if (!vs.length) { vnil.classList.remove('hidden'); cards.innerHTML=''; return; }
+  vnil.classList.add('hidden');
+  cards.innerHTML = vs.map(v => {
+    const sev = (v.severity||'warning').toLowerCase();
+    const vt  = v.violation||{};
+    const fix = vt.fix_command || null;
+    const ts  = v.detected_at ? new Date(v.detected_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+    const fid = 'f' + Math.random().toString(36).slice(2);
+    const vid = 'v' + Math.random().toString(36).slice(2);
+
+    // Determine what "Apply" does based on violation type
+    let applyBtn = '';
+    if (vt.type === 'ACK_WAIT_VIOLATION' && vt.recommended_ack_wait_secs) {
+      _vdata[vid] = { cmd:'ack_wait', stream: v.stream_name, consumer: v._con||v.consumer_name, secs: vt.recommended_ack_wait_secs };
+      applyBtn = `<button class="applybtn" id="${vid}" onclick="applyFix('${vid}',this)">Apply</button>`;
+    } else if (vt.type === 'MAX_PENDING_THROTTLE' && vt.recommended_min) {
+      _vdata[vid] = { cmd:'max_pending', stream: v.stream_name, consumer: v._con||v.consumer_name, value: vt.recommended_min };
+      applyBtn = `<button class="applybtn" id="${vid}" onclick="applyFix('${vid}',this)">Apply</button>`;
+    }
+
+    return `<div class="vcard ${sev}"><div class="vin">
+      <div class="vrow">
+        <span class="vpill">${e(vt.type||sev)}</span>
+        <span class="vcons">${e(v._con||v.consumer_name||'')}</span>
+        ${ts?`<span class="vtime">${ts}</span>`:''}
+      </div>
+      <div class="vdesc">${e(v.description||'')}</div>
+      ${fix?`<div class="fixrow">
+        <span class="fixlbl">Fix</span>
+        <span class="fixcmd" id="${fid}">${e(fix)}</span>
+        <button class="copybtn" onclick="cp('${fid}',this)">Copy</button>
+        ${applyBtn}
+      </div>`:''}
+    </div></div>`;
+  }).join('');
+}
+
+// ── Apply fix ──────────────────────────────────────────────────────────────────
+
+window.applyFix = async (vid, btn) => {
+  const d = _vdata[vid]; if (!d) return;
+  btn.disabled = true; btn.textContent = 'Applying…';
+  try {
+    let msg;
+    if (d.cmd === 'ack_wait') {
+      msg = await invoke('apply_fix_ack_wait', { stream: d.stream, consumer: d.consumer, secs: d.secs });
+    } else if (d.cmd === 'max_pending') {
+      msg = await invoke('apply_fix_max_pending', { stream: d.stream, consumer: d.consumer, value: d.value });
+    } else if (d.cmd === 'max_msgs') {
+      msg = await invoke('apply_fix_max_msgs', { stream: d.stream, value: d.value });
+    }
+    btn.textContent = 'Applied!';
+    btn.classList.add('ok');
+    showSuccessToast('Fix applied', msg || 'Done');
+    setTimeout(() => load(), 800);
+  } catch(ex) {
+    btn.disabled = false;
+    btn.textContent = 'Failed';
+    btn.classList.add('err');
+    showErrorToast('Apply failed', String(ex));
+    setTimeout(() => { btn.textContent='Apply'; btn.classList.remove('err'); btn.disabled=false; }, 3000);
+  }
+};
+
+// ── Copy to clipboard ──────────────────────────────────────────────────────────
+
+window.cp = (id, btn) => {
+  const t = document.getElementById(id)?.textContent; if (!t) return;
+  navigator.clipboard.writeText(t).then(() => {
+    btn.textContent = 'Copied!'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent='Copy'; btn.classList.remove('ok'); }, 2000);
+  });
+};
+
+// ── Export CSV ─────────────────────────────────────────────────────────────────
+
+window.exportCsv = () => {
+  const rows = [['Stream','Consumer','Severity','Type','Description','Fix Command','Detected']];
+  for (const v of currentViolations) {
+    const vt = v.violation||{};
+    rows.push([
+      v.stream_name||'', v._con||v.consumer_name||'',
+      v.severity||'', vt.type||'',
+      (v.description||'').replace(/"/g,'""'),
+      (vt.fix_command||'').replace(/"/g,'""'),
+      v.detected_at||''
+    ]);
+  }
+  const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `nats-violations-${Date.now()}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+};
+
+// ── Audit view ─────────────────────────────────────────────────────────────────
+
+window.showAuditView = () => {
+  state.view = 'audit';
+  sidebar();
+  document.getElementById('estate').classList.add('hidden');
+  document.getElementById('dview').classList.add('hidden');
+  document.getElementById('aview').classList.remove('hidden');
+};
+
+window.runAudit = async () => {
+  const btn = document.getElementById('runAuditBtn');
+  btn.disabled = true; btn.textContent = 'Scanning…';
+  document.getElementById('auditFindings').innerHTML =
+    '<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">Scanning streams and consumers…</div>';
+  document.getElementById('auditStats').classList.add('hidden');
+  try {
+    auditFindings = await invoke('run_init_audit') || [];
+    renderAuditFindings();
+  } catch(ex) {
+    document.getElementById('auditFindings').innerHTML =
+      `<div class="af-nil"><div class="af-nil-icon">⚠</div><div style="color:var(--red)">${e(String(ex))}</div></div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run Audit';
+  }
+};
+
+function renderAuditFindings() {
+  const container = document.getElementById('auditFindings');
+  const stats     = document.getElementById('auditStats');
+
+  if (!auditFindings.length) {
+    stats.classList.add('hidden');
+    container.innerHTML =
+      '<div class="af-nil"><div class="af-nil-icon">✅</div><div>All consumers look healthy. No configuration issues found.</div></div>';
+    return;
+  }
+
+  const nc = auditFindings.filter(f => f.severity==='CRITICAL').length;
+  const nw = auditFindings.filter(f => f.severity==='WARNING').length;
+  const ni = auditFindings.filter(f => f.severity==='INFO').length;
+
+  document.getElementById('auditCritical').textContent = nc;
+  document.getElementById('auditWarning').textContent  = nw;
+  document.getElementById('auditInfo').textContent     = ni;
+  document.getElementById('auditTotal').textContent    = auditFindings.length;
+  stats.classList.remove('hidden');
+
+  container.innerHTML = auditFindings.map(f => {
+    const fid = 'af' + Math.random().toString(36).slice(2);
+    return `<div class="af-card ${f.severity}">
+      <div class="af-row">
+        <span class="af-pill">${e(f.severity)}</span>
+        <span class="af-cons">${e(f.stream)} / ${e(f.consumer)}</span>
+        <span class="af-rule">${e(f.rule)}</span>
+      </div>
+      <div class="af-detail">${e(f.detail)}</div>
+      <div class="fixrow">
+        <span class="fixlbl">Fix</span>
+        <span class="fixcmd" id="${fid}">${e(f.fix_command)}</span>
+        <button class="copybtn" onclick="cp('${fid}',this)">Copy</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Settings drawer ────────────────────────────────────────────────────────────
+
+window.openSettings = () => {
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsDrawer').classList.add('open');
+};
+
+window.closeSettings = () => {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsDrawer').classList.remove('open');
+};
+
+window.onPollSlide = val => {
+  document.getElementById('pollSliderVal').textContent = val + 's';
+};
+
+// ── History modal ──────────────────────────────────────────────────────────────
+
+window.openHistModal = async (sn, cn) => {
+  document.getElementById('histModalTitle').textContent = cn;
+  document.getElementById('histModalSub').textContent   = sn;
+  document.getElementById('histModal').classList.add('open');
+
+  if (histModalChart) { histModalChart.destroy(); histModalChart = null; }
+  const canvas = document.getElementById('histModalChart');
+
+  try {
+    const d = await invoke('get_history', { stream: sn, consumer: cn });
+    if (!Array.isArray(d) || d.length < 2) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      document.getElementById('histModalChart').style.display='none';
+      let empty = document.querySelector('.modal-empty');
+      if (!empty) {
+        empty = document.createElement('div');
+        empty.className='modal-empty';
+        canvas.parentNode.appendChild(empty);
+      }
+      empty.textContent = 'Not enough history data yet.';
+      return;
+    }
+    document.getElementById('histModalChart').style.display='';
+    document.querySelector('.modal-empty')?.remove();
+
+    const lags = d.map(x => x.lag || x.num_pending || 0);
+    const labels = d.map((_,i) => {
+      const ts = d[i]?.captured_at;
+      return ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : String(i);
+    });
+
+    histModalChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Lag',
+          data: lags,
+          borderColor: '#22d3ee',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#22d3ee',
+          tension: .35,
+          fill: true,
+          backgroundColor: 'rgba(34,211,238,.06)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            backgroundColor: '#0e1525',
+            borderColor: '#1e2d45',
+            borderWidth: 1,
+            titleColor: '#e8edf5',
+            bodyColor: '#7a8fa8',
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color:'#3d5168', maxTicksLimit:6, maxRotation:0 },
+            grid:  { color:'#1e2d45' }
+          },
+          y: {
+            ticks: { color:'#3d5168' },
+            grid:  { color:'#1e2d45' },
+            min: 0
+          }
+        }
+      }
+    });
+  } catch(ex) {
+    console.warn('history modal error:', ex);
+  }
+};
+
+window.closeHistModal = (ev) => {
+  if (ev && ev.target !== document.getElementById('histModal')) return;
+  document.getElementById('histModal').classList.remove('open');
+  if (histModalChart) { histModalChart.destroy(); histModalChart = null; }
+};
+
+// ── Live event feed ────────────────────────────────────────────────────────────
+
+function feedEv(v) {
+  const box = document.getElementById('fevents');
+  const sev = (v.severity||'warning').toLowerCase();
+  const vt  = v.violation||{};
+  const ts  = v.detected_at ? new Date(v.detected_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+  box.querySelector('.fnil')?.remove();
+  const el = document.createElement('div');
+  el.className = 'fevent';
+  el.innerHTML = `<span class="fets">${ts}</span><span class="festream">${e(v.stream_name||'')}/${e(v.consumer_name||'')}</span><span class="fesep">·</span><span class="fetype ${sev}">${e(vt.type||sev)}</span>`;
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 5) box.removeChild(box.lastChild);
+  document.getElementById('fcnt').textContent = `${totalEv} event${totalEv!==1?'s':''}`;
+}
+
+// ── Toast notifications ────────────────────────────────────────────────────────
+
+function showToast(v) {
+  const sev = (v.severity||'warning').toLowerCase();
+  toast(sev, `${e(v.stream_name||'')} · ${e(v.consumer_name||'')}`, (v.description||'').slice(0,96));
+}
+
+function showSuccessToast(title, body) { toast('success', title, body); }
+function showErrorToast(title, body)   { toast('critical', title, body); }
+
+function toast(sev, title, body) {
+  const root = document.getElementById('toasts');
+  const el   = document.createElement('div');
+  el.className = `toast ${sev}`;
+  el.innerHTML = `<div class="toast-t">${title}</div><div class="toast-b">${e(String(body||'').slice(0,96))}${String(body||'').length>96?'…':''}</div>`;
+  root.appendChild(el);
+  setTimeout(() => { el.classList.add('toast-x'); setTimeout(() => el.remove(), 200); }, 5000);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+const e   = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const cap = s => s ? s[0].toUpperCase()+s.slice(1) : s;
+const fmt = n => { const v=Number(n)||0; return v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(1)+'K':String(v); };
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+
+renderRecents();
+</script>
+</body>
+</html>

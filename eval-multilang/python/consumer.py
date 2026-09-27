@@ -28,10 +28,19 @@ async def run_ack_wait(nc, duration: int):
     consumer = "py-ack-consumer"
 
     await js.add_stream(name=stream, subjects=["py.ack.>"], storage="memory", max_msgs=5000)
+    # Delete stale consumer first to ensure fresh config
+    try:
+        await js.delete_consumer(stream, consumer)
+    except Exception:
+        pass
+    await js.purge_stream(stream)
+    # ack_wait=2s: short enough that redeliveries happen quickly.
+    # max_ack_pending=20: allows pulling new messages each cycle so
+    # num_redelivered grows as different messages get their first redeliver.
     await js.add_consumer(stream, durable_name=consumer, ack_policy="explicit",
-                          ack_wait=4, max_ack_pending=10)
+                          ack_wait=2, max_ack_pending=20)
 
-    for i in range(20):
+    for i in range(50):
         await js.publish("py.ack.msg", json.dumps({"i": i}).encode())
 
     psub = await js.pull_subscribe("py.ack.>", consumer, stream=stream)
@@ -40,11 +49,11 @@ async def run_ack_wait(nc, duration: int):
     print(f"[Python AckWait] Running. nats-lens should detect AckWaitViolation.")
     while time.time() < deadline:
         try:
-            msgs = await psub.fetch(3, timeout=2)
-            print(f"[Python AckWait] pulled {len(msgs)} messages, holding 6s")
-            await asyncio.sleep(6)  # exceeds ack_wait=4s → NATS redelivers
+            msgs = await psub.fetch(5, timeout=1)
+            print(f"[Python AckWait] pulled {len(msgs)} messages, holding 3s")
+            await asyncio.sleep(3)  # exceeds ack_wait=2s → NATS redelivers
         except Exception:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.3)
 
     await js.delete_consumer(stream, consumer)
     await js.purge_stream(stream)

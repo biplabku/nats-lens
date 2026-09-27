@@ -53,7 +53,7 @@ func runAckWait(js nats.JetStreamContext, dur time.Duration) {
 	const consumer = "go-ack-consumer"
 	const subject  = "go.ack.msg"
 
-	// Ensure stream
+	// Ensure stream (create or get existing)
 	js.AddStream(&nats.StreamConfig{
 		Name:     stream,
 		Subjects: []string{subject},
@@ -61,16 +61,26 @@ func runAckWait(js nats.JetStreamContext, dur time.Duration) {
 		MaxMsgs:  5000,
 	})
 
-	// Consumer with short ack_wait
+	// Delete consumer if it exists with stale config — AddConsumer silently fails
+	// on config mismatch, leaving the old (possibly wrong) config in place.
+	js.DeleteConsumer(stream, consumer)
+
+	// Purge stale messages from previous runs
+	js.PurgeStream(stream)
+
+	// Consumer with very short ack_wait — each pull cycle delivers NEW messages
+	// to num_redelivered, causing it to grow across engine poll snapshots.
+	// ack_wait=2s ensures fast redelivery; max_ack_pending=20 allows pulling
+	// new messages each cycle (growing num_redelivered with distinct messages).
 	js.AddConsumer(stream, &nats.ConsumerConfig{
 		Durable:       consumer,
 		AckPolicy:     nats.AckExplicitPolicy,
-		AckWait:       4 * time.Second,
-		MaxAckPending: 10,
+		AckWait:       2 * time.Second,
+		MaxAckPending: 20,
 	})
 
-	// Publish messages
-	for i := 0; i < 20; i++ {
+	// Publish enough messages to sustain multiple pull cycles
+	for i := 0; i < 50; i++ {
 		js.Publish(subject, []byte(fmt.Sprintf(`{"i":%d}`, i)))
 	}
 
@@ -79,15 +89,17 @@ func runAckWait(js nats.JetStreamContext, dur time.Duration) {
 
 	fmt.Println("[Go AckWait] Running. nats-lens should detect AckWaitViolation.")
 	for time.Now().Before(deadline) {
-		msgs, err := sub.Fetch(3, nats.MaxWait(2*time.Second))
+		// Pull 5 messages, hold 3s (> ack_wait=2s) — NATS redelivers them.
+		// On next iteration, fetch pulls ADDITIONAL new messages from the stream
+		// (max_ack_pending=20, so 15 slots remain), growing num_redelivered.
+		msgs, err := sub.Fetch(5, nats.MaxWait(1*time.Second))
 		if err != nil {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(300 * time.Millisecond)
 			continue
 		}
-		fmt.Printf("[Go AckWait] pulled %d messages, holding without ack\n", len(msgs))
-		// Hold for 6s — exceeds ack_wait=4s → NATS redelivers
-		time.Sleep(6 * time.Second)
-		// After sleep, msgs go out of scope and ack_wait fires on server side
+		fmt.Printf("[Go AckWait] pulled %d, holding 3s (ack_wait=2s)\n", len(msgs))
+		time.Sleep(3 * time.Second)
+		// msgs out of scope — ack_wait fires, num_redelivered grows
 	}
 
 	// Cleanup
@@ -110,6 +122,10 @@ func runNakStorm(js nats.JetStreamContext, dur time.Duration) {
 		Storage:  nats.MemoryStorage,
 		MaxMsgs:  5000,
 	})
+
+	// Delete stale consumer, purge stream, recreate fresh
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
 
 	js.AddConsumer(stream, &nats.ConsumerConfig{
 		Durable:       consumer,
@@ -159,6 +175,8 @@ func runHealthy(js nats.JetStreamContext, dur time.Duration) {
 		MaxMsgs:  10000,
 	})
 
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
 	js.AddConsumer(stream, &nats.ConsumerConfig{
 		Durable:       consumer,
 		AckPolicy:     nats.AckExplicitPolicy,

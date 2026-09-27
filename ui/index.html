@@ -1,576 +1,429 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>nats-lens — JetStream Health Monitor</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   <style>
-    /* Custom scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-    /* Monospace numbers */
-    .tabular { font-variant-numeric: tabular-nums; }
-
-    /* Pulse animation for live dot */
-    @keyframes pulse-green {
-      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
-      50%       { opacity: .8; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+    :root {
+      --bg:      #080d18;
+      --surface: #0e1525;
+      --raised:  #152033;
+      --hover:   #1c2a42;
+      --border:  #1e2d45;
+      --soft:    #162035;
+      --t1: #e8edf5; --t2: #7a8fa8; --t3: #3d5168;
+      --cyan: #22d3ee; --cyan-d: #0e7490;
+      --green: #10b981; --amber: #f59e0b; --red: #f43f5e;
+      --r: 8px; --r-sm: 5px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
     }
-    .pulse-green { animation: pulse-green 2s ease-in-out infinite; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { font-family: var(--font); font-size: 13px; line-height: 1.5; background: var(--bg); color: var(--t1); -webkit-font-smoothing: antialiased; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
 
-    /* Toast slide-in */
-    @keyframes slide-in {
-      from { transform: translateX(110%); opacity: 0; }
-      to   { transform: translateX(0);    opacity: 1; }
-    }
-    .toast-enter { animation: slide-in 0.3s ease-out forwards; }
+    .app { display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 260px 1fr; grid-template-areas: "top top" "side main"; height: 100vh; overflow: hidden; }
 
-    /* Fade-out for toasts */
-    @keyframes fade-out {
-      from { opacity: 1; }
-      to   { opacity: 0; transform: translateY(-8px); }
-    }
-    .toast-exit { animation: fade-out 0.4s ease-in forwards; }
+    /* Topbar */
+    .top { grid-area: top; display: flex; align-items: center; gap: 10px; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -.3px; }
+    .logo-mark { width: 26px; height: 26px; background: linear-gradient(135deg,var(--cyan),var(--cyan-d)); border-radius: 6px; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #000; }
+    .top-divider { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+    .top-sub { font-size: 11px; font-weight: 500; color: var(--t2); letter-spacing: .5px; text-transform: uppercase; }
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .conn { display: flex; align-items: center; gap: 6px; background: var(--raised); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--t2); font-family: var(--mono); }
+    .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t3); transition: background .3s; }
+    .conn-dot.live { background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,.5); }
+    .conn-dot.err  { background: var(--red); }
+    .ts { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; }
 
-    /* Row hover */
-    tr.row-hover:hover td { background-color: rgba(51,65,85,0.5); }
+    /* Sidebar */
+    .side { grid-area: side; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .side-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--soft); display: flex; align-items: center; justify-content: space-between; }
+    .side-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--t3); }
+    .side-count  { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; }
+    .side-list   { flex: 1; overflow-y: auto; padding: 6px 8px; }
+    .side-list::-webkit-scrollbar { width: 3px; }
+    .side-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    /* Violation card entry */
-    @keyframes card-in {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .card-in { animation: card-in 0.25s ease-out forwards; }
+    .sitem { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; transition: background .1s; user-select: none; }
+    .sitem:hover { background: var(--hover); }
+    .sitem.sel   { background: rgba(34,211,238,.06); }
+
+    .pip { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--t3); transition: background .3s; }
+    .pip.healthy  { background: var(--green); box-shadow: 0 0 5px rgba(16,185,129,.35); }
+    .pip.warning  { background: var(--amber); box-shadow: 0 0 5px rgba(245,158,11,.35); }
+    .pip.critical { background: var(--red);   box-shadow: 0 0 5px rgba(244,63,94,.35); animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .sinfo { flex: 1; min-width: 0; }
+    .sname { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .smeta { font-size: 11px; color: var(--t2); margin-top: 1px; }
+
+    .badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; letter-spacing: .3px; flex-shrink: 0; }
+    .badge.healthy  { background: rgba(16,185,129,.1);  color: var(--green); }
+    .badge.warning  { background: rgba(245,158,11,.1);  color: var(--amber); }
+    .badge.critical { background: rgba(244,63,94,.1);   color: var(--red);   }
+
+    /* Main */
+    .main { grid-area: main; display: flex; flex-direction: column; overflow: hidden; }
+
+    .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+    .empty-ico { width: 52px; height: 52px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 22px; color: var(--t3); }
+    .empty h3  { font-size: 13px; font-weight: 600; color: var(--t2); }
+    .empty p   { font-size: 12px; color: var(--t3); }
+
+    .detail { flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+    .detail::-webkit-scrollbar { width: 3px; }
+    .detail::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .dhead { display: flex; align-items: flex-start; gap: 10px; }
+    .dtitle { font-size: 18px; font-weight: 700; letter-spacing: -.4px; }
+    .dsub   { font-size: 12px; color: var(--t2); margin-top: 2px; font-family: var(--mono); }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+    .chead { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px 11px; border-bottom: 1px solid var(--soft); }
+    .ctitle { font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--t2); }
+    .ccount { font-size: 11px; color: var(--t3); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 9px 16px; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--t3); border-bottom: 1px solid var(--soft); }
+    th:not(:first-child) { text-align: right; }
+    td { padding: 10px 16px; border-bottom: 1px solid var(--soft); vertical-align: middle; font-variant-numeric: tabular-nums; }
+    td:not(:first-child) { text-align: right; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background .08s; }
+    tbody tr:hover { background: var(--hover); }
+
+    .cname { font-weight: 500; font-family: var(--mono); font-size: 12px; }
+    .num   { font-family: var(--mono); font-size: 12px; }
+    .hi-a  { color: var(--amber); }
+    .hi-r  { color: var(--red); }
+
+    .bar-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+    .bar-bg   { width: 52px; height: 4px; background: var(--raised); border-radius: 2px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width .3s; background: var(--t3); }
+    .bar-fill.w { background: var(--amber); }
+    .bar-fill.c { background: var(--red); }
+    .bar-pct   { font-size: 11px; font-family: var(--mono); color: var(--t2); min-width: 28px; text-align: right; }
+
+    .sdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+    .sdot.ok { background: var(--green); }
+    .sdot.w  { background: var(--amber); }
+    .sdot.c  { background: var(--red); animation: blink 1.4s infinite; }
+
+    /* Violations */
+    .vlist { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+    .vcard { border-radius: var(--r-sm); border: 1px solid; overflow: hidden; animation: vi .18s ease-out; }
+    @keyframes vi { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+    .vcard.critical { border-color: rgba(244,63,94,.22); background: linear-gradient(135deg,rgba(244,63,94,.055),rgba(244,63,94,.015)); }
+    .vcard.warning  { border-color: rgba(245,158,11,.18); background: linear-gradient(135deg,rgba(245,158,11,.05),rgba(245,158,11,.015)); }
+    .vin  { padding: 11px 13px; }
+    .vrow { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .vpill { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; letter-spacing: .5px; text-transform: uppercase; font-family: var(--mono); }
+    .vcard.critical .vpill { background: rgba(244,63,94,.18); color: var(--red); }
+    .vcard.warning  .vpill { background: rgba(245,158,11,.18); color: var(--amber); }
+    .vcons { font-size: 11px; color: var(--t2); font-family: var(--mono); }
+    .vtime { font-size: 11px; color: var(--t3); margin-left: auto; }
+    .vdesc { font-size: 12px; color: var(--t1); line-height: 1.5; margin-bottom: 8px; }
+    .fixrow { display: flex; align-items: center; gap: 7px; background: rgba(0,0,0,.28); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 10px; }
+    .fixlbl { font-size: 10px; font-weight: 600; color: var(--t3); letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+    .fixcmd { font-size: 11px; font-family: var(--mono); color: var(--cyan); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .copybtn { flex-shrink: 0; padding: 3px 8px; background: var(--raised); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-weight: 600; color: var(--t2); transition: all .12s; }
+    .copybtn:hover { background: var(--hover); color: var(--t1); }
+    .copybtn.ok { color: var(--green); border-color: rgba(16,185,129,.25); }
+
+    .vnil { display: flex; align-items: center; gap: 7px; padding: 12px 14px; font-size: 12px; color: var(--t2); }
+    .vnil-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    /* Feed */
+    .feed { border-top: 1px solid var(--border); background: var(--surface); height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 16px; flex-shrink: 0; }
+    .flbl { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--t3); flex-shrink: 0; }
+    .fldot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); animation: blink 1.4s infinite; }
+    .fevents { flex: 1; overflow: hidden; display: flex; align-items: center; gap: 14px; }
+    .fevent  { display: flex; align-items: center; gap: 5px; flex-shrink: 0; font-size: 11px; animation: vi .25s ease-out; }
+    .fets    { color: var(--t3); font-family: var(--mono); font-size: 10px; }
+    .festream{ font-weight: 600; font-family: var(--mono); color: var(--t1); }
+    .fesep   { color: var(--t3); }
+    .fetype  { font-weight: 600; font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+    .fetype.critical { color: var(--red);   background: rgba(244,63,94,.1); }
+    .fetype.warning  { color: var(--amber); background: rgba(245,158,11,.1); }
+    .fnil    { font-size: 11px; color: var(--t3); font-style: italic; }
+    .fcnt    { font-size: 11px; color: var(--t3); margin-left: auto; flex-shrink: 0; }
+
+    /* Toast */
+    #toasts { position: fixed; top: 58px; right: 14px; display: flex; flex-direction: column; gap: 7px; z-index: 200; pointer-events: none; }
+    .toast  { background: var(--raised); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: var(--r-sm); padding: 10px 13px; min-width: 270px; max-width: 340px; pointer-events: all; animation: vi .18s ease-out; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+    .toast.warning { border-left-color: var(--amber); }
+    .toast-t { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+    .toast-b { font-size: 11px; color: var(--t2); line-height: 1.4; }
+    .toast-x { animation: tx .18s ease-in forwards; }
+    @keyframes tx { to{opacity:0;transform:translateX(8px)} }
+
+    .hidden { display: none !important; }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 flex flex-col h-screen overflow-hidden font-sans">
+<body>
+<div class="app">
 
-<!-- ── Top bar ────────────────────────────────────────────────────────────── -->
-<header class="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 z-10">
-  <div class="flex items-center gap-3">
-    <!-- Logo -->
-    <svg class="w-6 h-6 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-    </svg>
-    <span class="text-green-400 font-bold text-lg tracking-tight">nats-lens</span>
-    <span class="hidden sm:inline text-slate-500 text-xs">JetStream Health Monitor</span>
-  </div>
-
-  <div class="flex items-center gap-4">
-    <div class="flex items-center gap-2">
-      <div id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-colors duration-500"></div>
-      <span id="conn-label" class="text-xs text-slate-400 tabular">connecting…</span>
+  <header class="top">
+    <div class="logo"><div class="logo-mark">N</div>nats-lens</div>
+    <div class="top-divider"></div>
+    <span class="top-sub">JetStream Monitor</span>
+    <div class="top-right">
+      <div class="conn"><div class="conn-dot" id="cdot"></div><span id="curl">—</span></div>
+      <span class="ts" id="cts"></span>
     </div>
-    <span id="server-url" class="hidden sm:inline text-xs text-slate-500 font-mono truncate max-w-xs"></span>
-    <span id="last-updated" class="text-xs text-slate-600 tabular"></span>
-  </div>
-</header>
+  </header>
 
-<!-- ── Main layout ─────────────────────────────────────────────────────────── -->
-<div class="flex flex-1 overflow-hidden">
-
-  <!-- Left panel: stream list -->
-  <aside class="w-64 shrink-0 border-r border-slate-700 bg-slate-850 flex flex-col overflow-hidden" style="background:#0d1526">
-    <div class="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
-      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Streams</span>
-      <span id="stream-count" class="text-xs text-slate-500 tabular">—</span>
+  <aside class="side">
+    <div class="side-head">
+      <span class="side-label">Streams</span>
+      <span class="side-count" id="scnt">—</span>
     </div>
-    <div id="stream-list" class="flex-1 overflow-y-auto py-1">
-      <div class="px-3 py-6 text-center text-slate-600 text-sm">Waiting for data…</div>
+    <div class="side-list" id="slist">
+      <div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">Connecting…</div>
     </div>
   </aside>
 
-  <!-- Right main area -->
-  <main class="flex-1 flex flex-col overflow-hidden">
+  <main class="main">
+    <div class="empty" id="estate">
+      <div class="empty-ico">⌖</div>
+      <h3>Select a stream</h3>
+      <p>Auto-refreshes every 10s</p>
+    </div>
 
-    <!-- Stream detail / placeholder -->
-    <div id="main-area" class="flex-1 overflow-y-auto p-4">
-      <!-- Placeholder shown when no stream selected -->
-      <div id="placeholder" class="flex flex-col items-center justify-center h-full text-slate-600">
-        <svg class="w-16 h-16 mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <path d="M3 3h18v18H3zM3 9h18M9 21V9"/>
-        </svg>
-        <p class="text-lg">Select a stream to inspect</p>
-        <p class="text-sm mt-1">Streams update every 10 s automatically</p>
+    <div class="detail hidden" id="dview">
+      <div class="dhead">
+        <div>
+          <div class="dtitle" id="dname">—</div>
+          <div class="dsub"   id="dmeta">—</div>
+        </div>
+        <div id="dbadge" style="margin-top:4px"></div>
       </div>
 
-      <!-- Consumer table (shown when stream is selected) -->
-      <div id="stream-detail" class="hidden">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 id="detail-stream-name" class="text-xl font-bold text-slate-100"></h2>
-            <p id="detail-stream-meta" class="text-xs text-slate-500 mt-0.5"></p>
-          </div>
-          <div id="detail-health-badge"></div>
-        </div>
+      <div class="card">
+        <div class="chead"><span class="ctitle">Consumers</span></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Lag</th><th>Redeliv/min</th>
+              <th>Ack Pending</th><th>Trend</th><th style="text-align:center">Health</th>
+            </tr>
+          </thead>
+          <tbody id="ctbody"></tbody>
+        </table>
+      </div>
 
-        <!-- Consumer table -->
-        <div class="rounded-lg border border-slate-700 overflow-hidden mb-6">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wide">
-                <th class="text-left px-4 py-2">Consumer</th>
-                <th class="text-right px-4 py-2">Lag</th>
-                <th class="text-right px-4 py-2">Redeliv/min</th>
-                <th class="text-right px-4 py-2">Ack Pending</th>
-                <th class="text-center px-4 py-2">Health</th>
-                <th class="text-center px-4 py-2">Lag Trend</th>
-              </tr>
-            </thead>
-            <tbody id="consumer-tbody" class="divide-y divide-slate-700/50">
-            </tbody>
-          </table>
+      <div class="card">
+        <div class="chead">
+          <span class="ctitle">Violations</span>
+          <span class="ccount" id="vcnt"></span>
         </div>
-
-        <!-- Violations section -->
-        <div id="violations-section">
-          <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            Active Violations
-          </h3>
-          <div id="violation-cards" class="grid gap-3"></div>
-          <div id="no-violations" class="hidden flex items-center gap-2 text-green-400 text-sm py-2">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            No violations detected — stream is healthy
-          </div>
+        <div id="vbody">
+          <div class="vnil" id="vnil"><div class="vnil-dot"></div>All consumers healthy</div>
+          <div class="vlist" id="vcards"></div>
         </div>
       </div>
     </div>
 
-    <!-- Bottom violation feed -->
-    <div class="shrink-0 border-t border-slate-700 bg-slate-800/60" style="height:120px">
-      <div class="px-3 py-1.5 flex items-center justify-between border-b border-slate-700/50">
-        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" id="feed-pulse"></span>
-          Live Violation Feed
-        </span>
-        <span id="feed-count" class="text-xs text-slate-600 tabular">0 events</span>
-      </div>
-      <div id="violation-feed" class="overflow-y-auto px-2 py-1 space-y-0.5" style="height:80px">
-        <div class="text-xs text-slate-600 italic px-1">Waiting for violations…</div>
-      </div>
+    <div class="feed">
+      <div class="flbl"><div class="fldot"></div>Live</div>
+      <div class="fevents" id="fevents"><span class="fnil">Waiting…</span></div>
+      <span class="fcnt" id="fcnt"></span>
     </div>
   </main>
 </div>
+<div id="toasts"></div>
 
-<!-- ── Toast container ─────────────────────────────────────────────────────── -->
-<div id="toast-container" class="fixed top-14 right-4 flex flex-col gap-2 z-50 pointer-events-none" style="max-width:360px"></div>
-
-<!-- ── JavaScript ──────────────────────────────────────────────────────────── -->
 <script>
-'use strict';
+const API = '', charts = {};
+let state = { streams:[], sel:null }, totalEv = 0;
 
-// ── State ─────────────────────────────────────────────────────────────────────
-const state = {
-  streams:        [],      // Vec<StreamHealth> from /api/streams
-  selectedStream: null,    // stream_name string
-  feedEvents:     [],      // last 50 violation events
-  feedCount:      0,
-  connected:      false,
-};
+document.addEventListener('DOMContentLoaded', () => {
+  fetch(`${API}/health`).then(() => conn(true)).catch(() => conn(false));
+  load(); setInterval(load, 10000); sse();
+});
 
-// Keyed by canvas id — holds live Chart.js instances so we can destroy them
-// before re-rendering the consumer table.
-const chartInstances = {};
-
-const API = window.location.origin;
-
-// ── Colour helpers ────────────────────────────────────────────────────────────
-function healthColor(health) {
-  switch (health) {
-    case 'critical': return { dot: 'bg-red-500',    badge: 'bg-red-900/40 text-red-400 border border-red-700',    text: 'text-red-400'    };
-    case 'warning':  return { dot: 'bg-yellow-500', badge: 'bg-yellow-900/40 text-yellow-400 border border-yellow-700', text: 'text-yellow-400' };
-    default:         return { dot: 'bg-green-500',  badge: 'bg-green-900/40 text-green-400 border border-green-700',  text: 'text-green-400'  };
-  }
+function conn(ok) {
+  document.getElementById('cdot').className = 'conn-dot'+(ok?' live':' err');
+  document.getElementById('curl').textContent = location.host || 'localhost';
+}
+function stamp() {
+  const t = new Date();
+  document.getElementById('cts').textContent = `updated ${t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
 }
 
-function severityColor(severity) {
-  return severity === 'CRITICAL'
-    ? { border: 'border-red-700',    bg: 'bg-red-950/50',    badge: 'bg-red-900/60 text-red-300',    icon: '🔴' }
-    : { border: 'border-yellow-700', bg: 'bg-yellow-950/40', badge: 'bg-yellow-900/50 text-yellow-300', icon: '🟡' };
-}
-
-function fmtNum(n) {
-  if (n === undefined || n === null) return '—';
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'k';
-  return String(n);
-}
-
-function fmtRate(r) {
-  return r == null ? '—' : r.toFixed(1);
-}
-
-function fmtTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-// ── Connection indicator ──────────────────────────────────────────────────────
-function setConnected(ok) {
-  state.connected = ok;
-  const dot   = document.getElementById('conn-dot');
-  const label = document.getElementById('conn-label');
-  if (ok) {
-    dot.className   = 'w-2.5 h-2.5 rounded-full bg-green-500 pulse-green transition-colors duration-500';
-    label.textContent = 'connected';
-    label.className = 'text-xs text-green-400 tabular';
-  } else {
-    dot.className   = 'w-2.5 h-2.5 rounded-full bg-red-500 transition-colors duration-500';
-    label.textContent = 'disconnected';
-    label.className = 'text-xs text-red-400 tabular';
-  }
-}
-
-// ── Fetch & render streams ────────────────────────────────────────────────────
-async function fetchStreams() {
+async function load() {
   try {
-    const resp = await fetch(`${API}/api/streams`);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    state.streams = await resp.json();
-    renderStreamList();
-    if (state.selectedStream) {
-      const stream = state.streams.find(s => s.stream_name === state.selectedStream);
-      if (stream) renderStreamDetail(stream);
-    }
-    setConnected(true);
-    document.getElementById('server-url').textContent = window.location.host;
-    document.getElementById('last-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
-  } catch (err) {
-    setConnected(false);
-    console.error('fetchStreams error:', err);
-  }
+    const r = await fetch(`${API}/api/streams`);
+    state.streams = (await r.json()) || [];
+    conn(true); sidebar();
+    if (state.sel) { const s = state.streams.find(x => x.stream_name===state.sel); if(s) detail(s); }
+    stamp();
+  } catch(e) { conn(false); }
 }
 
-function renderStreamList() {
-  const container = document.getElementById('stream-list');
-  const count     = document.getElementById('stream-count');
-
-  count.textContent = state.streams.length
-    ? `${state.streams.length} stream${state.streams.length !== 1 ? 's' : ''}`
-    : '0 streams';
-
-  if (!state.streams.length) {
-    container.innerHTML = '<div class="px-3 py-6 text-center text-slate-600 text-sm">No streams found</div>';
-    return;
-  }
-
-  container.innerHTML = state.streams.map(s => {
-    const c     = healthColor(s.health);
-    const isSelected = s.stream_name === state.selectedStream;
-    const bg    = isSelected ? 'bg-slate-700/60' : 'hover:bg-slate-800/60';
-    const consumers = s.consumers ? s.consumers.length : 0;
-    return `
-      <button
-        onclick="selectStream('${escHtml(s.stream_name)}')"
-        class="w-full text-left px-3 py-2.5 transition-colors duration-100 ${bg} group border-l-2 ${isSelected ? 'border-green-500' : 'border-transparent'}"
-      >
-        <div class="flex items-center justify-between">
-          <span class="font-medium text-sm truncate ${isSelected ? 'text-slate-100' : 'text-slate-300'}" title="${escHtml(s.stream_name)}">${escHtml(s.stream_name)}</span>
-          <span class="w-2 h-2 rounded-full shrink-0 ml-2 ${c.dot}"></span>
+function sidebar() {
+  const list = document.getElementById('slist');
+  const cnt  = document.getElementById('scnt');
+  cnt.textContent = `${state.streams.length} stream${state.streams.length!==1?'s':''}`;
+  if (!state.streams.length) { list.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">No streams</div>'; return; }
+  list.innerHTML = state.streams.map(s => {
+    const h = (s.health||'healthy').toLowerCase();
+    const v = (s.consumers||[]).flatMap(c=>c.violations||[]).length;
+    const n = s.consumers?.length??0;
+    return `<div class="sitem${state.sel===s.stream_name?' sel':''}" onclick="pick('${e(s.stream_name)}')">
+      <div class="pip ${h}"></div>
+      <div class="sinfo">
+        <div class="sname">${e(s.stream_name)}</div>
+        <div class="smeta">${n} consumer${n!==1?'s':''}${v?` · ${v} violation${v!==1?'s':''}`:''}
         </div>
-        <div class="flex items-center gap-2 mt-0.5">
-          <span class="text-xs text-slate-500">${consumers} consumer${consumers !== 1 ? 's' : ''}</span>
-          <span class="text-xs ${c.text} capitalize">${s.health}</span>
-        </div>
-      </button>`;
+      </div>
+      <span class="badge ${h}">${cap(h)}</span>
+    </div>`;
   }).join('');
 }
 
-function selectStream(name) {
-  state.selectedStream = name;
-  const stream = state.streams.find(s => s.stream_name === name);
-  if (stream) {
-    document.getElementById('placeholder').classList.add('hidden');
-    document.getElementById('stream-detail').classList.remove('hidden');
-    renderStreamDetail(stream);
-  }
-  renderStreamList(); // refresh selected highlight
+function pick(name) {
+  state.sel = name; sidebar();
+  const s = state.streams.find(x=>x.stream_name===name); if(!s) return;
+  document.getElementById('estate').classList.add('hidden');
+  document.getElementById('dview').classList.remove('hidden');
+  detail(s);
 }
 
-function renderStreamDetail(stream) {
-  // Header
-  document.getElementById('detail-stream-name').textContent = stream.stream_name;
-  const msgs    = stream.state ? fmtNum(stream.state.messages) : '—';
-  const firstSeq = stream.state ? fmtNum(stream.state.first_seq) : '—';
-  const lastSeq  = stream.state ? fmtNum(stream.state.last_seq)  : '—';
-  document.getElementById('detail-stream-meta').textContent =
-    `${msgs} messages · seq ${firstSeq}–${lastSeq}`;
+function detail(s) {
+  const st = s.state||{};
+  document.getElementById('dname').textContent = s.stream_name;
+  document.getElementById('dmeta').textContent = `${fmt(st.messages??0)} msgs · seq ${fmt(st.first_seq??0)}–${fmt(st.last_seq??0)}`;
+  const h = (s.health||'healthy').toLowerCase();
+  document.getElementById('dbadge').innerHTML = `<span class="badge ${h}">${cap(h)}</span>`;
+  consumers(s.stream_name, s.consumers||[]);
+  violations((s.consumers||[]).flatMap(c=>(c.violations||[]).map(v=>({...v,_con:c.consumer_name}))));
+}
 
-  const c = healthColor(stream.health);
-  document.getElementById('detail-health-badge').innerHTML =
-    `<span class="px-2.5 py-1 rounded text-xs font-semibold capitalize ${c.badge}">${stream.health}</span>`;
+function consumers(sn, cs) {
+  const tb = document.getElementById('ctbody');
+  if (!cs.length) { tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:18px">No consumers</td></tr>`; return; }
+  tb.innerHTML = cs.map(c => {
+    const h   = (c.health||'healthy').toLowerCase();
+    const lag = c.lag??0;
+    const lc  = lag>1000?'hi-r':lag>100?'hi-a':'';
+    const rd  = (c.redeliveries_per_min||0).toFixed(1);
+    const rc  = parseFloat(rd)>5?'hi-r':'';
+    const sn2 = c.snapshot||{};
+    const mp  = sn2.max_ack_pending||1;
+    const ap  = sn2.num_ack_pending||0;
+    const pct = Math.round(ap/mp*100);
+    const bc  = pct>=95?'c':pct>=80?'w':'';
+    const dc  = h==='critical'?'c':h==='warning'?'w':'ok';
+    const cid = `s${sn}_${c.consumer_name}`.replace(/\W/g,'_');
+    return `<tr>
+      <td><span class="cname">${e(c.consumer_name)}</span></td>
+      <td><span class="num ${lc}">${fmt(lag)}</span></td>
+      <td><span class="num ${rc}">${rd}</span></td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill ${bc}" style="width:${pct}%"></div></div><span class="bar-pct">${pct}%</span></div></td>
+      <td style="text-align:right"><canvas id="${cid}" width="68" height="26"></canvas></td>
+      <td style="text-align:center"><div class="sdot ${dc}"></div></td>
+    </tr>`;
+  }).join('');
+  requestAnimationFrame(()=>{ cs.forEach(c=>{ spark(`s${sn}_${c.consumer_name}`.replace(/\W/g,'_'), sn, c.consumer_name, c.health); }); });
+}
 
-  // Consumer table
-  const tbody    = document.getElementById('consumer-tbody');
-  const consumers = stream.consumers || [];
-
-  if (!consumers.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-600 text-sm">No consumers</td></tr>';
-  } else {
-    // Destroy any existing sparkline charts before re-rendering rows.
-    Object.keys(chartInstances).forEach(id => {
-      chartInstances[id].destroy();
-      delete chartInstances[id];
+async function spark(id, sn, cn, health) {
+  try {
+    const r = await fetch(`${API}/api/history/${encodeURIComponent(sn)}/${encodeURIComponent(cn)}`);
+    const d = await r.json();
+    if (!Array.isArray(d)||d.length<2) return;
+    const lags = d.map(x=>x.lag||0);
+    const col  = health==='critical'?'#f43f5e':health==='warning'?'#f59e0b':'#10b981';
+    if (charts[id]) charts[id].destroy();
+    const canvas = document.getElementById(id); if(!canvas) return;
+    charts[id] = new Chart(canvas, {
+      type:'line',
+      data:{ labels:lags.map((_,i)=>i), datasets:[{ data:lags, borderColor:col, borderWidth:1.5, pointRadius:0, tension:.4, fill:true, backgroundColor:col+'15' }] },
+      options:{ responsive:false, animation:false, plugins:{legend:{display:false},tooltip:{enabled:false}}, scales:{x:{display:false},y:{display:false,min:0}} }
     });
-
-    tbody.innerHTML = consumers.map(con => {
-      const c    = healthColor(con.health);
-      const rate = fmtRate(con.redeliveries_per_min);
-      const snap = con.snapshot || {};
-      const maxAp = snap.max_ack_pending || 0;
-      const ackPct = maxAp > 0
-        ? Math.round((snap.num_ack_pending || 0) / maxAp * 100)
-        : 0;
-      const chartId = 'chart-' + con.consumer_name.replace(/[^a-zA-Z0-9_-]/g, '_');
-      return `
-        <tr class="row-hover transition-colors duration-75">
-          <td class="px-4 py-2 font-mono text-sm text-slate-200">${escHtml(con.consumer_name)}</td>
-          <td class="px-4 py-2 text-right tabular text-sm ${con.lag > 1000 ? 'text-yellow-400' : 'text-slate-300'}">${fmtNum(con.lag)}</td>
-          <td class="px-4 py-2 text-right tabular text-sm ${parseFloat(rate) > 5 ? 'text-red-400' : 'text-slate-300'}">${rate}</td>
-          <td class="px-4 py-2 text-right tabular text-sm">
-            <span title="${snap.num_ack_pending || 0}/${maxAp}">${fmtNum(snap.num_ack_pending)}<span class="text-slate-600">/${fmtNum(maxAp)}</span></span>
-            ${ackPct > 80 ? `<span class="ml-1 text-xs ${ackPct >= 100 ? 'text-red-400' : 'text-yellow-400'}">${ackPct}%</span>` : ''}
-          </td>
-          <td class="px-4 py-2 text-center">
-            <span class="inline-block w-2 h-2 rounded-full ${c.dot}" title="${con.health}"></span>
-          </td>
-          <td class="px-4 py-2 text-center">
-            <canvas id="${chartId}" width="120" height="40"></canvas>
-          </td>
-        </tr>`;
-    }).join('');
-
-    // Fetch lag history for each consumer and render sparklines.
-    renderSparklines(stream.stream_name, consumers);
-  }
-
-  // Violations
-  const allViolations = consumers.flatMap(c => (c.violations || []).map(v => ({...v, _consumer: c.consumer_name})));
-  const cardsEl   = document.getElementById('violation-cards');
-  const noViolEl  = document.getElementById('no-violations');
-  const secEl     = document.getElementById('violations-section');
-
-  secEl.classList.remove('hidden');
-
-  if (!allViolations.length) {
-    cardsEl.innerHTML = '';
-    noViolEl.classList.remove('hidden');
-  } else {
-    noViolEl.classList.add('hidden');
-    cardsEl.innerHTML = allViolations.map(v => buildViolationCard(v)).join('');
-  }
+  } catch(_){}
 }
 
-// ── Violation card ─────────────────────────────────────────────────────────────
-function buildViolationCard(v) {
-  const sc  = severityColor(v.severity);
-  const vt  = v.violation || {};
-
-  // Extract fix command if present
-  let fixCmd = vt.fix_command || null;
-
-  return `
-    <div class="rounded-lg border ${sc.border} ${sc.bg} p-4 card-in">
-      <div class="flex items-start justify-between gap-3">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs px-2 py-0.5 rounded font-semibold ${sc.badge}">${v.violation ? v.violation.type || '' : ''}</span>
-            <span class="text-xs text-slate-500 tabular">${v.consumer_name} · ${fmtTime(v.detected_at)}</span>
-          </div>
-          <p class="text-sm text-slate-200 leading-relaxed">${escHtml(v.description || '')}</p>
-          ${fixCmd ? `
-          <div class="mt-3 flex items-center gap-2 bg-slate-900/60 rounded px-3 py-1.5 font-mono text-xs text-slate-300 border border-slate-700">
-            <span class="text-slate-500 select-none">$</span>
-            <code class="flex-1 break-all">${escHtml(fixCmd)}</code>
-            <button
-              onclick="copyCmd(this, '${escHtml(fixCmd).replace(/'/g, "\\'")}')"
-              class="shrink-0 text-slate-500 hover:text-green-400 transition-colors"
-              title="Copy command"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-              </svg>
-            </button>
-          </div>` : ''}
-        </div>
-        <span class="text-lg shrink-0 leading-none pt-0.5">${sc.icon}</span>
+function violations(vs) {
+  const vnil  = document.getElementById('vnil');
+  const vcnt  = document.getElementById('vcnt');
+  const cards = document.getElementById('vcards');
+  vcnt.textContent = vs.length ? `${vs.length} active` : '';
+  if (!vs.length) { vnil.classList.remove('hidden'); cards.innerHTML=''; return; }
+  vnil.classList.add('hidden');
+  cards.innerHTML = vs.map(v => {
+    const sev = (v.severity||'warning').toLowerCase();
+    const vt  = v.violation||{};
+    const fix = vt.fix_command||null;
+    const ts  = v.detected_at ? new Date(v.detected_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+    const fid = 'f'+Math.random().toString(36).slice(2);
+    return `<div class="vcard ${sev}"><div class="vin">
+      <div class="vrow">
+        <span class="vpill">${e(vt.type||'')}</span>
+        <span class="vcons">${e(v._con||v.consumer_name||'')}</span>
+        ${ts?`<span class="vtime">${ts}</span>`:''}
       </div>
-    </div>`;
+      <div class="vdesc">${e(v.description||'')}</div>
+      ${fix?`<div class="fixrow">
+        <span class="fixlbl">Fix</span>
+        <span class="fixcmd" id="${fid}">${e(fix)}</span>
+        <button class="copybtn" onclick="cp('${fid}',this)">Copy</button>
+      </div>`:''}
+    </div></div>`;
+  }).join('');
 }
 
-function copyCmd(btn, cmd) {
-  navigator.clipboard.writeText(cmd).then(() => {
-    btn.innerHTML = `<svg class="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
-    setTimeout(() => {
-      btn.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
-    }, 2000);
-  }).catch(() => {});
+function cp(id, btn) {
+  const t = document.getElementById(id)?.textContent; if(!t) return;
+  navigator.clipboard.writeText(t).then(()=>{ btn.textContent='Copied!'; btn.classList.add('ok'); setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('ok');},2000); });
 }
 
-// ── Sparklines ────────────────────────────────────────────────────────────────
-async function renderSparklines(streamName, consumers) {
-  for (const con of consumers) {
-    const chartId = 'chart-' + con.consumer_name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const canvas  = document.getElementById(chartId);
-    if (!canvas) continue;
-
-    // Destroy any stale instance that survived a layout update.
-    if (chartInstances[chartId]) {
-      chartInstances[chartId].destroy();
-      delete chartInstances[chartId];
-    }
-
-    try {
-      const resp = await fetch(
-        `${API}/api/history/${encodeURIComponent(streamName)}/${encodeURIComponent(con.consumer_name)}`
-      );
-      if (!resp.ok) continue;
-      const history = await resp.json();
-      if (!history.length) continue;
-
-      const lags   = history.map(h => h.lag);
-      const maxLag = Math.max(...lags);
-      const color  = maxLag > 1000 ? '#ef4444' : maxLag > 100 ? '#eab308' : '#22c55e';
-
-      chartInstances[chartId] = new Chart(canvas, {
-        type: 'line',
-        data: {
-          labels: lags.map((_, i) => i),
-          datasets: [{
-            data:            lags,
-            borderColor:     color,
-            borderWidth:     1.5,
-            backgroundColor: 'transparent',
-            pointRadius:     0,
-            tension:         0.4,
-          }],
-        },
-        options: {
-          animation:  false,
-          responsive: false,
-          plugins: {
-            legend:  { display: false },
-            tooltip: { enabled: false },
-          },
-          scales: {
-            x: { display: false },
-            y: { display: false },
-          },
-        },
-      });
-    } catch (_) {
-      // Silently ignore history fetch errors — sparklines are best-effort.
-    }
-  }
+function sse() {
+  let s; const open = () => {
+    s = new EventSource(`${API}/api/violations/stream`);
+    s.onopen=()=>conn(true); s.onerror=()=>{ s.close(); setTimeout(open,5000); };
+    s.onmessage=ev=>{ try{ const v=JSON.parse(ev.data); totalEv++; feed(v); toast(v); load(); }catch(_){} };
+  }; open();
 }
 
-// ── Live feed ─────────────────────────────────────────────────────────────────
-function addFeedEvent(v) {
-  state.feedCount++;
-  state.feedEvents.unshift(v);
-  if (state.feedEvents.length > 50) state.feedEvents.pop();
-
-  document.getElementById('feed-count').textContent = `${state.feedCount} event${state.feedCount !== 1 ? 's' : ''}`;
-
-  const feed = document.getElementById('violation-feed');
-  const sc   = severityColor(v.severity);
-  const row  = document.createElement('div');
-  row.className = `flex items-center gap-2 text-xs px-1 py-0.5 rounded transition-colors`;
-  row.innerHTML = `
-    <span class="${v.severity === 'CRITICAL' ? 'text-red-500' : 'text-yellow-500'} shrink-0">${sc.icon}</span>
-    <span class="text-slate-400 tabular shrink-0">${fmtTime(v.detected_at)}</span>
-    <span class="font-mono text-slate-300 truncate">${escHtml(v.stream_name)}/<span class="text-slate-400">${escHtml(v.consumer_name)}</span></span>
-    <span class="text-slate-500 shrink-0 truncate">${escHtml(v.violation ? (v.violation.type || '') : '')}</span>`;
-
-  // Remove the placeholder if present
-  const placeholder = feed.querySelector('.italic');
-  if (placeholder) placeholder.remove();
-
-  feed.prepend(row);
-
-  // Trim to 10 visible rows
-  while (feed.children.length > 10) feed.lastChild.remove();
+function feed(v) {
+  const box = document.getElementById('fevents');
+  const sev = (v.severity||'warning').toLowerCase();
+  const vt  = v.violation||{};
+  const ts  = v.detected_at ? new Date(v.detected_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+  box.querySelector('.fnil')?.remove();
+  const el = document.createElement('div');
+  el.className = 'fevent';
+  el.innerHTML = `<span class="fets">${ts}</span><span class="festream">${e(v.stream_name||'')}/${e(v.consumer_name||'')}</span><span class="fesep">·</span><span class="fetype ${sev}">${e(vt.type||'')}</span>`;
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length>5) box.removeChild(box.lastChild);
+  document.getElementById('fcnt').textContent = `${totalEv} event${totalEv!==1?'s':''}`;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-function showToast(v) {
-  const sc      = severityColor(v.severity);
-  const container = document.getElementById('toast-container');
-  const toast   = document.createElement('div');
-  toast.className = `pointer-events-auto rounded-lg border ${sc.border} ${sc.bg} px-4 py-3 shadow-xl toast-enter`;
-  toast.style.maxWidth = '360px';
-  toast.innerHTML = `
-    <div class="flex items-start gap-3">
-      <span class="text-lg shrink-0 leading-none">${sc.icon}</span>
-      <div class="min-w-0">
-        <div class="text-xs font-semibold text-slate-300 mb-0.5">${escHtml(v.stream_name)} · ${escHtml(v.consumer_name)}</div>
-        <div class="text-xs text-slate-400 leading-snug line-clamp-2">${escHtml(v.description || '')}</div>
-      </div>
-      <button onclick="this.closest('.toast-enter,.toast-exit').remove()" class="shrink-0 text-slate-500 hover:text-slate-300 transition-colors ml-1">✕</button>
-    </div>`;
-
-  container.prepend(toast);
-
-  // Auto-dismiss after 6 s
-  setTimeout(() => {
-    toast.classList.replace('toast-enter', 'toast-exit');
-    setTimeout(() => toast.remove(), 400);
-  }, 6_000);
+function toast(v) {
+  const root = document.getElementById('toasts');
+  const sev  = (v.severity||'warning').toLowerCase();
+  const el   = document.createElement('div');
+  el.className = `toast ${sev}`;
+  el.innerHTML = `<div class="toast-t">${e(v.stream_name||'')} · ${e(v.consumer_name||'')}</div><div class="toast-b">${e((v.description||'').slice(0,96))}${(v.description||'').length>96?'…':''}</div>`;
+  root.appendChild(el);
+  setTimeout(()=>{ el.classList.add('toast-x'); setTimeout(()=>el.remove(),200); }, 5000);
 }
 
-// ── SSE connection ────────────────────────────────────────────────────────────
-function connectSSE() {
-  const sse = new EventSource(`${API}/api/violations/stream`);
-
-  sse.onopen = () => setConnected(true);
-
-  sse.onmessage = (event) => {
-    try {
-      const v = JSON.parse(event.data);
-      addFeedEvent(v);
-      showToast(v);
-      // Always refresh stream list so health badges update immediately on violation
-      fetchStreams();
-    } catch (e) {
-      console.warn('Failed to parse SSE event:', e);
-    }
-  };
-
-  sse.onerror = () => {
-    setConnected(false);
-    sse.close();
-    // Reconnect after 5 s
-    setTimeout(connectSSE, 5_000);
-  };
-}
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-fetchStreams();
-setInterval(fetchStreams, 5_000);
-connectSSE();
+const e   = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const cap = s => s ? s[0].toUpperCase()+s.slice(1) : s;
+const fmt = n => { const v=Number(n)||0; return v>=1e6?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000).toFixed(1)+'K':String(v); };
 </script>
 </body>
 </html>

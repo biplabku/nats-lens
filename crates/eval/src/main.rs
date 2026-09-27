@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
     detection_rows.extend(rows);
 
     // Scenario 6: False positives under healthy operation
-    info!("── Scenario 6: FALSE POSITIVE RATE (60s healthy operation) ──");
+    info!("── Scenario 6: FALSE POSITIVE RATE ({}s healthy operation) ──", args.fp_duration);
     let fp = run_false_positive_scenario(&js, &tx, args.fp_duration, args.poll_interval).await?;
     let total_fp: u32 = fp.iter().map(|r| r.violations_count).sum();
     info!("  Total false positives in 60s: {}", total_fp);
@@ -551,23 +551,83 @@ async fn run_missing_progress_scenario(
     Ok(rows)
 }
 
-// ── Scenario 6: False positive rate ──────────────────────────────────────────
-// Run correctly-configured consumers for duration_secs. Count any violations.
+// ── Scenario 6: False positive rate with diverse consumers ───────────────────
+// Run N correctly-configured consumers with varied configurations to verify
+// that the detectors do not false-positive on legitimate workloads.
+// Configurations tested:
+//   - ack_wait: 30s, 60s, 120s, 300s
+//   - max_ack_pending: 10, 64, 256, 512
+//   - processing rates: 1 msg/s to 50 msg/s
 async fn run_false_positive_scenario(
     js:            &jetstream::Context,
     tx:            &broadcast::Sender<Violation>,
     duration_secs: u64,
     poll_interval: u64,
 ) -> Result<Vec<FalsePositiveRow>> {
-    ensure_stream(js, "EVAL_HEALTHY", "eval.healthy.>", 10_000, None).await?;
+    // Create diverse streams with different configurations
+    let configs: &[(u64, i64, &str, u64)] = &[
+        // (ack_wait_secs, max_ack_pending, subject, publish_interval_ms)
+        (30,  10,  "eval.fp.fast",   20),   // fast publisher, small pending
+        (60,  64,  "eval.fp.med",    100),  // medium config
+        (120, 256, "eval.fp.slow",   500),  // slow publisher, large pending
+        (300, 512, "eval.fp.bulk",   50),   // bulk throughput
+        (30,  10,  "eval.fp.extra1", 200),  // extra consumers at default settings
+    ];
 
-    // Correctly configured consumer — generous ack_wait, large max_pending
+    let mut publishers  = Vec::new();
+    let mut consumers_v = Vec::new();
+
+    for (i, &(ack_wait, max_pending, subject, pub_ms)) in configs.iter().enumerate() {
+        let stream_name = format!("EVAL_FP_{i}");
+        ensure_stream(js, &stream_name, &format!("{subject}.>"), 10_000, None).await?;
+        let stream = js.get_stream(&stream_name).await?;
+        let consumer_name = format!("fp-consumer-{i}");
+        let _consumer = stream.get_or_create_consumer(
+            &consumer_name,
+            pull::Config {
+                durable_name:    Some(consumer_name.clone()),
+                ack_wait:        Duration::from_secs(ack_wait),
+                max_ack_pending: max_pending,
+                ..Default::default()
+            },
+        ).await?;
+
+        // Publisher for this stream
+        let js_p = js.clone();
+        let subj = format!("{subject}.msg");
+        publishers.push(tokio::spawn(async move {
+            let mut seq = 0u32;
+            loop {
+                let _ = js_p.publish(subj.clone(), format!(r#"{{"seq":{seq}}}"#).into()).await;
+                seq += 1;
+                tokio::time::sleep(Duration::from_millis(pub_ms)).await;
+            }
+        }));
+
+        // Consumer: pull and promptly ACK (correctly configured)
+        let js_c = js.clone();
+        consumers_v.push(tokio::spawn(async move {
+            loop {
+                let Ok(stream) = js_c.get_stream(&stream_name).await else { break };
+                let Ok(c) = stream.get_consumer::<pull::Config>(&consumer_name).await else { break };
+                if let Ok(mut batch) = c.fetch().max_messages(10).messages().await {
+                    while let Some(Ok(msg)) = batch.next().await {
+                        let _ = msg.ack().await; // always promptly ack
+                    }
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }));
+    }
+
+    // Legacy single stream for backward compatibility
+    ensure_stream(js, "EVAL_HEALTHY", "eval.healthy.>", 10_000, None).await?;
     let stream = js.get_stream("EVAL_HEALTHY").await?;
     let consumer = stream.get_or_create_consumer(
         "eval-healthy-consumer",
         pull::Config {
             durable_name:    Some("eval-healthy-consumer".into()),
-            ack_wait:        Duration::from_secs(300), // well above any processing
+            ack_wait:        Duration::from_secs(300),
             max_ack_pending: 512,
             ..Default::default()
         },
@@ -623,8 +683,12 @@ async fn run_false_positive_scenario(
         });
     }
 
+    // Abort all tasks
     publisher.abort();
     correct_consumer.abort();
+    for p in publishers  { p.abort(); }
+    for c in consumers_v { c.abort(); }
+
     if let Ok(s) = js.get_stream("EVAL_HEALTHY").await {
         tokio::spawn(async move { let _ = s.delete_consumer("eval-healthy-consumer").await; });
     }
