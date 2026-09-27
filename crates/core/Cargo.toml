@@ -1,0 +1,16 @@
+[package]
+name        = "nats-lens-core"
+version     = "0.1.0"
+edition     = "2021"
+description = "Detection engine for NATS JetStream delivery guarantee violations"
+
+[dependencies]
+async-nats       = { workspace = true }
+tokio            = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+anyhow           = { workspace = true }
+tracing          = { workspace = true }
+chrono           = { workspace = true }
+bytes            = { workspace = true }
+futures-util     = { workspace = true }

@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build
+        run: cargo build --release --all
+
+      - name: Test
+        run: cargo test --all
+
+  # ── Integration test: start NATS, run nats-lens init ─────────────────────────
+  integration:
+    name: Integration test
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:latest
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8222/healthz"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 4222:4222
+          - 8222:8222
+        env:
+          NATS_ARGS: --jetstream
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build nats-lens
+        run: cargo build --release -p nats-lens
+
+      - name: Run init audit against live NATS
+        run: |
+          ./target/release/nats-lens --nats nats://localhost:4222 init --format json
+          echo "Exit code: $?"
+
+      - name: Health check endpoint
+        run: |
+          ./target/release/nats-lens --nats nats://localhost:4222 --port 9999 &
+          LENS_PID=$!
+          sleep 3
+          curl -sf http://localhost:9999/health | grep '"status":"ok"'
+          kill $LENS_PID

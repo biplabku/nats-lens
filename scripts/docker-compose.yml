@@ -1,0 +1,140 @@
+# ── nats-lens local demo environment ─────────────────────────────────────────
+#
+# Starts:
+#   - NATS server 2.10 with JetStream enabled
+#   - A one-shot setup container that creates 3 streams + consumers
+#     to pre-populate the dashboard with interesting data
+#
+# Usage:
+#   docker compose -f scripts/docker-compose.yml up -d
+#   cargo run -p nats-lens -- --nats nats://localhost:4222 --port 8888
+#   open http://localhost:8888
+#
+# To tear down:
+#   docker compose -f scripts/docker-compose.yml down -v
+
+services:
+
+  # ── NATS server ──────────────────────────────────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-lens-nats
+    command:
+      - "--jetstream"
+      - "--http_port=8222"
+      - "--store_dir=/data"
+    ports:
+      - "4222:4222"   # client connections
+      - "8222:8222"   # monitoring HTTP
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Stream / consumer setup ──────────────────────────────────────────────────
+  #
+  # Creates three streams that demonstrate different violation classes:
+  #
+  #   ORDERS   — short ack_wait (5 s) + tiny max-pending (3) → AckWaitViolation
+  #              and MaxPendingThrottle when a worker takes > 5 s to process.
+  #
+  #   EVENTS   — very small retention (50 msgs) → SequenceGap if a consumer
+  #              falls behind and messages are evicted.
+  #
+  #   PAYMENTS — large ack_wait (120 s) + high pending ratio → MissingProgress
+  #              when tasks are long but don't send in-progress acks.
+  #
+  setup:
+    image: natsio/nats-box:latest
+    container_name: nats-lens-setup
+    depends_on:
+      nats:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        SERVER="nats://nats:4222"
+
+        echo "==> Creating ORDERS stream (short ack_wait, tiny max-pending)"
+        nats --server $$SERVER stream add ORDERS \
+          --subjects "orders.>" \
+          --storage memory \
+          --retention limits \
+          --max-msgs 5000 \
+          --max-age 1h \
+          --discard old \
+          --replicas 1 \
+          --defaults 2>/dev/null || echo "ORDERS stream already exists"
+
+        nats --server $$SERVER consumer add ORDERS order-processor \
+          --pull \
+          --ack explicit \
+          --deliver all \
+          --max-deliver 10 \
+          --max-pending 3 \
+          --wait 5s \
+          --defaults 2>/dev/null || echo "order-processor consumer already exists"
+
+        echo "==> Creating EVENTS stream (tiny retention, NakStorm candidate)"
+        nats --server $$SERVER stream add EVENTS \
+          --subjects "events.>" \
+          --storage memory \
+          --retention limits \
+          --max-msgs 50 \
+          --max-age 2m \
+          --discard old \
+          --replicas 1 \
+          --defaults 2>/dev/null || echo "EVENTS stream already exists"
+
+        nats --server $$SERVER consumer add EVENTS event-handler \
+          --pull \
+          --ack explicit \
+          --deliver all \
+          --max-deliver 20 \
+          --max-pending 25 \
+          --wait 10s \
+          --defaults 2>/dev/null || echo "event-handler consumer already exists"
+
+        echo "==> Creating PAYMENTS stream (long ack_wait, MissingProgress candidate)"
+        nats --server $$SERVER stream add PAYMENTS \
+          --subjects "payments.>" \
+          --storage memory \
+          --retention limits \
+          --max-msgs 10000 \
+          --max-age 24h \
+          --discard old \
+          --replicas 1 \
+          --defaults 2>/dev/null || echo "PAYMENTS stream already exists"
+
+        nats --server $$SERVER consumer add PAYMENTS payment-processor \
+          --pull \
+          --ack explicit \
+          --deliver all \
+          --max-deliver 5 \
+          --max-pending 20 \
+          --wait 120s \
+          --defaults 2>/dev/null || echo "payment-processor consumer already exists"
+
+        echo ""
+        echo "==> Seeding test messages …"
+        for i in $(seq 1 100); do
+          nats --server $$SERVER pub orders.new "{\"order_id\": $$i, \"item\": \"widget\"}" 2>/dev/null
+        done
+        for i in $(seq 1 200); do
+          nats --server $$SERVER pub events.click "{\"event\": \"click\", \"seq\": $$i}" 2>/dev/null
+        done
+        for i in $(seq 1 50); do
+          nats --server $$SERVER pub payments.charge "{\"payment_id\": $$i, \"amount\": $$(( RANDOM % 10000 ))}" 2>/dev/null
+        done
+
+        echo ""
+        echo "✓ Setup complete. Run nats-lens:"
+        echo "  cargo run -p nats-lens -- --nats nats://localhost:4222 --port 8888"
+
+volumes:
+  nats-data:

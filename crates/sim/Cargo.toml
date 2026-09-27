@@ -1,0 +1,17 @@
+[package]
+name    = "nats-lens-sim"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "nats-lens-sim"
+path = "src/main.rs"
+
+[dependencies]
+async-nats   = { workspace = true }
+tokio        = { workspace = true }
+anyhow       = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }
+clap         = { version = "4", features = ["derive"] }

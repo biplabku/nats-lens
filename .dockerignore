@@ -1,0 +1,8 @@
+target/
+.git/
+.github/
+data/
+paper/
+analysis/__pycache__/
+*.md
+!README.md

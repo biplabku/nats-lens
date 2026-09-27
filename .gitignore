@@ -1,0 +1,7 @@
+target/
+data/
+paper/figures/
+/tmp/
+*.log
+.DS_Store
+eval-multilang/go/nats-lens-go-eval

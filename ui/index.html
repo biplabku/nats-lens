@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nats-lens — JetStream Health Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Monospace numbers */
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    /* Pulse animation for live dot */
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+      50%       { opacity: .8; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+    }
+    .pulse-green { animation: pulse-green 2s ease-in-out infinite; }
+
+    /* Toast slide-in */
+    @keyframes slide-in {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .toast-enter { animation: slide-in 0.3s ease-out forwards; }
+
+    /* Fade-out for toasts */
+    @keyframes fade-out {
+      from { opacity: 1; }
+      to   { opacity: 0; transform: translateY(-8px); }
+    }
+    .toast-exit { animation: fade-out 0.4s ease-in forwards; }
+
+    /* Row hover */
+    tr.row-hover:hover td { background-color: rgba(51,65,85,0.5); }
+
+    /* Violation card entry */
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-in { animation: card-in 0.25s ease-out forwards; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col h-screen overflow-hidden font-sans">
+
+<!-- ── Top bar ────────────────────────────────────────────────────────────── -->
+<header class="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 z-10">
+  <div class="flex items-center gap-3">
+    <!-- Logo -->
+    <svg class="w-6 h-6 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+    <span class="text-green-400 font-bold text-lg tracking-tight">nats-lens</span>
+    <span class="hidden sm:inline text-slate-500 text-xs">JetStream Health Monitor</span>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <div id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-colors duration-500"></div>
+      <span id="conn-label" class="text-xs text-slate-400 tabular">connecting…</span>
+    </div>
+    <span id="server-url" class="hidden sm:inline text-xs text-slate-500 font-mono truncate max-w-xs"></span>
+    <span id="last-updated" class="text-xs text-slate-600 tabular"></span>
+  </div>
+</header>
+
+<!-- ── Main layout ─────────────────────────────────────────────────────────── -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- Left panel: stream list -->
+  <aside class="w-64 shrink-0 border-r border-slate-700 bg-slate-850 flex flex-col overflow-hidden" style="background:#0d1526">
+    <div class="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
+      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Streams</span>
+      <span id="stream-count" class="text-xs text-slate-500 tabular">—</span>
+    </div>
+    <div id="stream-list" class="flex-1 overflow-y-auto py-1">
+      <div class="px-3 py-6 text-center text-slate-600 text-sm">Waiting for data…</div>
+    </div>
+  </aside>
+
+  <!-- Right main area -->
+  <main class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Stream detail / placeholder -->
+    <div id="main-area" class="flex-1 overflow-y-auto p-4">
+      <!-- Placeholder shown when no stream selected -->
+      <div id="placeholder" class="flex flex-col items-center justify-center h-full text-slate-600">
+        <svg class="w-16 h-16 mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M3 3h18v18H3zM3 9h18M9 21V9"/>
+        </svg>
+        <p class="text-lg">Select a stream to inspect</p>
+        <p class="text-sm mt-1">Streams update every 10 s automatically</p>
+      </div>
+
+      <!-- Consumer table (shown when stream is selected) -->
+      <div id="stream-detail" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 id="detail-stream-name" class="text-xl font-bold text-slate-100"></h2>
+            <p id="detail-stream-meta" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+          <div id="detail-health-badge"></div>
+        </div>
+
+        <!-- Consumer table -->
+        <div class="rounded-lg border border-slate-700 overflow-hidden mb-6">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wide">
+                <th class="text-left px-4 py-2">Consumer</th>
+                <th class="text-right px-4 py-2">Lag</th>
+                <th class="text-right px-4 py-2">Redeliv/min</th>
+                <th class="text-right px-4 py-2">Ack Pending</th>
+                <th class="text-center px-4 py-2">Health</th>
+                <th class="text-center px-4 py-2">Lag Trend</th>
+              </tr>
+            </thead>
+            <tbody id="consumer-tbody" class="divide-y divide-slate-700/50">
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Violations section -->
+        <div id="violations-section">
+          <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Active Violations
+          </h3>
+          <div id="violation-cards" class="grid gap-3"></div>
+          <div id="no-violations" class="hidden flex items-center gap-2 text-green-400 text-sm py-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            No violations detected — stream is healthy
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom violation feed -->
+    <div class="shrink-0 border-t border-slate-700 bg-slate-800/60" style="height:120px">
+      <div class="px-3 py-1.5 flex items-center justify-between border-b border-slate-700/50">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" id="feed-pulse"></span>
+          Live Violation Feed
+        </span>
+        <span id="feed-count" class="text-xs text-slate-600 tabular">0 events</span>
+      </div>
+      <div id="violation-feed" class="overflow-y-auto px-2 py-1 space-y-0.5" style="height:80px">
+        <div class="text-xs text-slate-600 italic px-1">Waiting for violations…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Toast container ─────────────────────────────────────────────────────── -->
+<div id="toast-container" class="fixed top-14 right-4 flex flex-col gap-2 z-50 pointer-events-none" style="max-width:360px"></div>
+
+<!-- ── JavaScript ──────────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  streams:        [],      // Vec<StreamHealth> from /api/streams
+  selectedStream: null,    // stream_name string
+  feedEvents:     [],      // last 50 violation events
+  feedCount:      0,
+  connected:      false,
+};
+
+// Keyed by canvas id — holds live Chart.js instances so we can destroy them
+// before re-rendering the consumer table.
+const chartInstances = {};
+
+const API = window.location.origin;
+
+// ── Colour helpers ────────────────────────────────────────────────────────────
+function healthColor(health) {
+  switch (health) {
+    case 'critical': return { dot: 'bg-red-500',    badge: 'bg-red-900/40 text-red-400 border border-red-700',    text: 'text-red-400'    };
+    case 'warning':  return { dot: 'bg-yellow-500', badge: 'bg-yellow-900/40 text-yellow-400 border border-yellow-700', text: 'text-yellow-400' };
+    default:         return { dot: 'bg-green-500',  badge: 'bg-green-900/40 text-green-400 border border-green-700',  text: 'text-green-400'  };
+  }
+}
+
+function severityColor(severity) {
+  return severity === 'CRITICAL'
+    ? { border: 'border-red-700',    bg: 'bg-red-950/50',    badge: 'bg-red-900/60 text-red-300',    icon: '🔴' }
+    : { border: 'border-yellow-700', bg: 'bg-yellow-950/40', badge: 'bg-yellow-900/50 text-yellow-300', icon: '🟡' };
+}
+
+function fmtNum(n) {
+  if (n === undefined || n === null) return '—';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function fmtRate(r) {
+  return r == null ? '—' : r.toFixed(1);
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ── Connection indicator ──────────────────────────────────────────────────────
+function setConnected(ok) {
+  state.connected = ok;
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  if (ok) {
+    dot.className   = 'w-2.5 h-2.5 rounded-full bg-green-500 pulse-green transition-colors duration-500';
+    label.textContent = 'connected';
+    label.className = 'text-xs text-green-400 tabular';
+  } else {
+    dot.className   = 'w-2.5 h-2.5 rounded-full bg-red-500 transition-colors duration-500';
+    label.textContent = 'disconnected';
+    label.className = 'text-xs text-red-400 tabular';
+  }
+}
+
+// ── Fetch & render streams ────────────────────────────────────────────────────
+async function fetchStreams() {
+  try {
+    const resp = await fetch(`${API}/api/streams`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    state.streams = await resp.json();
+    renderStreamList();
+    if (state.selectedStream) {
+      const stream = state.streams.find(s => s.stream_name === state.selectedStream);
+      if (stream) renderStreamDetail(stream);
+    }
+    setConnected(true);
+    document.getElementById('server-url').textContent = window.location.host;
+    document.getElementById('last-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    setConnected(false);
+    console.error('fetchStreams error:', err);
+  }
+}
+
+function renderStreamList() {
+  const container = document.getElementById('stream-list');
+  const count     = document.getElementById('stream-count');
+
+  count.textContent = state.streams.length
+    ? `${state.streams.length} stream${state.streams.length !== 1 ? 's' : ''}`
+    : '0 streams';
+
+  if (!state.streams.length) {
+    container.innerHTML = '<div class="px-3 py-6 text-center text-slate-600 text-sm">No streams found</div>';
+    return;
+  }
+
+  container.innerHTML = state.streams.map(s => {
+    const c     = healthColor(s.health);
+    const isSelected = s.stream_name === state.selectedStream;
+    const bg    = isSelected ? 'bg-slate-700/60' : 'hover:bg-slate-800/60';
+    const consumers = s.consumers ? s.consumers.length : 0;
+    return `
+      <button
+        onclick="selectStream('${escHtml(s.stream_name)}')"
+        class="w-full text-left px-3 py-2.5 transition-colors duration-100 ${bg} group border-l-2 ${isSelected ? 'border-green-500' : 'border-transparent'}"
+      >
+        <div class="flex items-center justify-between">
+          <span class="font-medium text-sm truncate ${isSelected ? 'text-slate-100' : 'text-slate-300'}" title="${escHtml(s.stream_name)}">${escHtml(s.stream_name)}</span>
+          <span class="w-2 h-2 rounded-full shrink-0 ml-2 ${c.dot}"></span>
+        </div>
+        <div class="flex items-center gap-2 mt-0.5">
+          <span class="text-xs text-slate-500">${consumers} consumer${consumers !== 1 ? 's' : ''}</span>
+          <span class="text-xs ${c.text} capitalize">${s.health}</span>
+        </div>
+      </button>`;
+  }).join('');
+}
+
+function selectStream(name) {
+  state.selectedStream = name;
+  const stream = state.streams.find(s => s.stream_name === name);
+  if (stream) {
+    document.getElementById('placeholder').classList.add('hidden');
+    document.getElementById('stream-detail').classList.remove('hidden');
+    renderStreamDetail(stream);
+  }
+  renderStreamList(); // refresh selected highlight
+}
+
+function renderStreamDetail(stream) {
+  // Header
+  document.getElementById('detail-stream-name').textContent = stream.stream_name;
+  const msgs    = stream.state ? fmtNum(stream.state.messages) : '—';
+  const firstSeq = stream.state ? fmtNum(stream.state.first_seq) : '—';
+  const lastSeq  = stream.state ? fmtNum(stream.state.last_seq)  : '—';
+  document.getElementById('detail-stream-meta').textContent =
+    `${msgs} messages · seq ${firstSeq}–${lastSeq}`;
+
+  const c = healthColor(stream.health);
+  document.getElementById('detail-health-badge').innerHTML =
+    `<span class="px-2.5 py-1 rounded text-xs font-semibold capitalize ${c.badge}">${stream.health}</span>`;
+
+  // Consumer table
+  const tbody    = document.getElementById('consumer-tbody');
+  const consumers = stream.consumers || [];
+
+  if (!consumers.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-600 text-sm">No consumers</td></tr>';
+  } else {
+    // Destroy any existing sparkline charts before re-rendering rows.
+    Object.keys(chartInstances).forEach(id => {
+      chartInstances[id].destroy();
+      delete chartInstances[id];
+    });
+
+    tbody.innerHTML = consumers.map(con => {
+      const c    = healthColor(con.health);
+      const rate = fmtRate(con.redeliveries_per_min);
+      const snap = con.snapshot || {};
+      const maxAp = snap.max_ack_pending || 0;
+      const ackPct = maxAp > 0
+        ? Math.round((snap.num_ack_pending || 0) / maxAp * 100)
+        : 0;
+      const chartId = 'chart-' + con.consumer_name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      return `
+        <tr class="row-hover transition-colors duration-75">
+          <td class="px-4 py-2 font-mono text-sm text-slate-200">${escHtml(con.consumer_name)}</td>
+          <td class="px-4 py-2 text-right tabular text-sm ${con.lag > 1000 ? 'text-yellow-400' : 'text-slate-300'}">${fmtNum(con.lag)}</td>
+          <td class="px-4 py-2 text-right tabular text-sm ${parseFloat(rate) > 5 ? 'text-red-400' : 'text-slate-300'}">${rate}</td>
+          <td class="px-4 py-2 text-right tabular text-sm">
+            <span title="${snap.num_ack_pending || 0}/${maxAp}">${fmtNum(snap.num_ack_pending)}<span class="text-slate-600">/${fmtNum(maxAp)}</span></span>
+            ${ackPct > 80 ? `<span class="ml-1 text-xs ${ackPct >= 100 ? 'text-red-400' : 'text-yellow-400'}">${ackPct}%</span>` : ''}
+          </td>
+          <td class="px-4 py-2 text-center">
+            <span class="inline-block w-2 h-2 rounded-full ${c.dot}" title="${con.health}"></span>
+          </td>
+          <td class="px-4 py-2 text-center">
+            <canvas id="${chartId}" width="120" height="40"></canvas>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Fetch lag history for each consumer and render sparklines.
+    renderSparklines(stream.stream_name, consumers);
+  }
+
+  // Violations
+  const allViolations = consumers.flatMap(c => (c.violations || []).map(v => ({...v, _consumer: c.consumer_name})));
+  const cardsEl   = document.getElementById('violation-cards');
+  const noViolEl  = document.getElementById('no-violations');
+  const secEl     = document.getElementById('violations-section');
+
+  secEl.classList.remove('hidden');
+
+  if (!allViolations.length) {
+    cardsEl.innerHTML = '';
+    noViolEl.classList.remove('hidden');
+  } else {
+    noViolEl.classList.add('hidden');
+    cardsEl.innerHTML = allViolations.map(v => buildViolationCard(v)).join('');
+  }
+}
+
+// ── Violation card ─────────────────────────────────────────────────────────────
+function buildViolationCard(v) {
+  const sc  = severityColor(v.severity);
+  const vt  = v.violation || {};
+
+  // Extract fix command if present
+  let fixCmd = vt.fix_command || null;
+
+  return `
+    <div class="rounded-lg border ${sc.border} ${sc.bg} p-4 card-in">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs px-2 py-0.5 rounded font-semibold ${sc.badge}">${v.violation ? v.violation.type || '' : ''}</span>
+            <span class="text-xs text-slate-500 tabular">${v.consumer_name} · ${fmtTime(v.detected_at)}</span>
+          </div>
+          <p class="text-sm text-slate-200 leading-relaxed">${escHtml(v.description || '')}</p>
+          ${fixCmd ? `
+          <div class="mt-3 flex items-center gap-2 bg-slate-900/60 rounded px-3 py-1.5 font-mono text-xs text-slate-300 border border-slate-700">
+            <span class="text-slate-500 select-none">$</span>
+            <code class="flex-1 break-all">${escHtml(fixCmd)}</code>
+            <button
+              onclick="copyCmd(this, '${escHtml(fixCmd).replace(/'/g, "\\'")}')"
+              class="shrink-0 text-slate-500 hover:text-green-400 transition-colors"
+              title="Copy command"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+            </button>
+          </div>` : ''}
+        </div>
+        <span class="text-lg shrink-0 leading-none pt-0.5">${sc.icon}</span>
+      </div>
+    </div>`;
+}
+
+function copyCmd(btn, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.innerHTML = `<svg class="w-3.5 h-3.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`;
+    setTimeout(() => {
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+    }, 2000);
+  }).catch(() => {});
+}
+
+// ── Sparklines ────────────────────────────────────────────────────────────────
+async function renderSparklines(streamName, consumers) {
+  for (const con of consumers) {
+    const chartId = 'chart-' + con.consumer_name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const canvas  = document.getElementById(chartId);
+    if (!canvas) continue;
+
+    // Destroy any stale instance that survived a layout update.
+    if (chartInstances[chartId]) {
+      chartInstances[chartId].destroy();
+      delete chartInstances[chartId];
+    }
+
+    try {
+      const resp = await fetch(
+        `${API}/api/history/${encodeURIComponent(streamName)}/${encodeURIComponent(con.consumer_name)}`
+      );
+      if (!resp.ok) continue;
+      const history = await resp.json();
+      if (!history.length) continue;
+
+      const lags   = history.map(h => h.lag);
+      const maxLag = Math.max(...lags);
+      const color  = maxLag > 1000 ? '#ef4444' : maxLag > 100 ? '#eab308' : '#22c55e';
+
+      chartInstances[chartId] = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: lags.map((_, i) => i),
+          datasets: [{
+            data:            lags,
+            borderColor:     color,
+            borderWidth:     1.5,
+            backgroundColor: 'transparent',
+            pointRadius:     0,
+            tension:         0.4,
+          }],
+        },
+        options: {
+          animation:  false,
+          responsive: false,
+          plugins: {
+            legend:  { display: false },
+            tooltip: { enabled: false },
+          },
+          scales: {
+            x: { display: false },
+            y: { display: false },
+          },
+        },
+      });
+    } catch (_) {
+      // Silently ignore history fetch errors — sparklines are best-effort.
+    }
+  }
+}
+
+// ── Live feed ─────────────────────────────────────────────────────────────────
+function addFeedEvent(v) {
+  state.feedCount++;
+  state.feedEvents.unshift(v);
+  if (state.feedEvents.length > 50) state.feedEvents.pop();
+
+  document.getElementById('feed-count').textContent = `${state.feedCount} event${state.feedCount !== 1 ? 's' : ''}`;
+
+  const feed = document.getElementById('violation-feed');
+  const sc   = severityColor(v.severity);
+  const row  = document.createElement('div');
+  row.className = `flex items-center gap-2 text-xs px-1 py-0.5 rounded transition-colors`;
+  row.innerHTML = `
+    <span class="${v.severity === 'CRITICAL' ? 'text-red-500' : 'text-yellow-500'} shrink-0">${sc.icon}</span>
+    <span class="text-slate-400 tabular shrink-0">${fmtTime(v.detected_at)}</span>
+    <span class="font-mono text-slate-300 truncate">${escHtml(v.stream_name)}/<span class="text-slate-400">${escHtml(v.consumer_name)}</span></span>
+    <span class="text-slate-500 shrink-0 truncate">${escHtml(v.violation ? (v.violation.type || '') : '')}</span>`;
+
+  // Remove the placeholder if present
+  const placeholder = feed.querySelector('.italic');
+  if (placeholder) placeholder.remove();
+
+  feed.prepend(row);
+
+  // Trim to 10 visible rows
+  while (feed.children.length > 10) feed.lastChild.remove();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(v) {
+  const sc      = severityColor(v.severity);
+  const container = document.getElementById('toast-container');
+  const toast   = document.createElement('div');
+  toast.className = `pointer-events-auto rounded-lg border ${sc.border} ${sc.bg} px-4 py-3 shadow-xl toast-enter`;
+  toast.style.maxWidth = '360px';
+  toast.innerHTML = `
+    <div class="flex items-start gap-3">
+      <span class="text-lg shrink-0 leading-none">${sc.icon}</span>
+      <div class="min-w-0">
+        <div class="text-xs font-semibold text-slate-300 mb-0.5">${escHtml(v.stream_name)} · ${escHtml(v.consumer_name)}</div>
+        <div class="text-xs text-slate-400 leading-snug line-clamp-2">${escHtml(v.description || '')}</div>
+      </div>
+      <button onclick="this.closest('.toast-enter,.toast-exit').remove()" class="shrink-0 text-slate-500 hover:text-slate-300 transition-colors ml-1">✕</button>
+    </div>`;
+
+  container.prepend(toast);
+
+  // Auto-dismiss after 6 s
+  setTimeout(() => {
+    toast.classList.replace('toast-enter', 'toast-exit');
+    setTimeout(() => toast.remove(), 400);
+  }, 6_000);
+}
+
+// ── SSE connection ────────────────────────────────────────────────────────────
+function connectSSE() {
+  const sse = new EventSource(`${API}/api/violations/stream`);
+
+  sse.onopen = () => setConnected(true);
+
+  sse.onmessage = (event) => {
+    try {
+      const v = JSON.parse(event.data);
+      addFeedEvent(v);
+      showToast(v);
+      // Always refresh stream list so health badges update immediately on violation
+      fetchStreams();
+    } catch (e) {
+      console.warn('Failed to parse SSE event:', e);
+    }
+  };
+
+  sse.onerror = () => {
+    setConnected(false);
+    sse.close();
+    // Reconnect after 5 s
+    setTimeout(connectSSE, 5_000);
+  };
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+fetchStreams();
+setInterval(fetchStreams, 5_000);
+connectSSE();
+</script>
+</body>
+</html>
