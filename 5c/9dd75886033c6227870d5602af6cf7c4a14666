@@ -1,0 +1,25 @@
+crates/lens/Cargo.toml
+  s_eb5fcf0a950ba8::t_23907cb93943b2 5-12
+README.md
+  s_eb5fcf0a950ba8::t_6958bde83725ed 7
+crates/eval/Cargo.toml
+  s_eb5fcf0a950ba8::t_f302160198e3ef 10-13
+crates/core/Cargo.toml
+  s_eb5fcf0a950ba8::t_ca3b2725427bdc 6-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "5c9dd75886033c6227870d5602af6cf7c4a14666",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
