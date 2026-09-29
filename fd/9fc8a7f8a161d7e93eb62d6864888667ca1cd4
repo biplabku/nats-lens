@@ -1,0 +1,21 @@
+crates/eval/src/extended_main.rs
+  s_eb5fcf0a950ba8::t_7ddbb3fd29a4e1 675
+crates/eval/src/main.rs
+  s_eb5fcf0a950ba8::t_511af77652614e 915
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "fd9fc8a7f8a161d7e93eb62d6864888667ca1cd4",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
