@@ -1,0 +1,21 @@
+crates/lens/ui/index.html
+  s_eb5fcf0a950ba8::t_26f2d258743849 1-429
+crates/lens/src/server.rs
+  s_eb5fcf0a950ba8::t_31205cc10b9a22 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "b44574d3cfd34b326166de5580c7ef2c85487c7a",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
