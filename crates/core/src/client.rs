@@ -27,7 +27,10 @@ impl NatsClient {
             let body = serde_json::json!({ "offset": offset });
             let msg = self
                 .inner
-                .request("$JS.API.STREAM.LIST", Bytes::from(serde_json::to_vec(&body)?))
+                .request(
+                    "$JS.API.STREAM.LIST",
+                    Bytes::from(serde_json::to_vec(&body)?),
+                )
                 .await
                 .map_err(|e| anyhow!("STREAM.LIST request failed: {e}"))?;
 
@@ -35,7 +38,11 @@ impl NatsClient {
                 .map_err(|e| anyhow!("Failed to parse STREAM.LIST response: {e}"))?;
 
             if let Some(err) = resp.error {
-                return Err(anyhow!("JetStream API error {}: {}", err.code, err.description));
+                return Err(anyhow!(
+                    "JetStream API error {}: {}",
+                    err.code,
+                    err.description
+                ));
             }
 
             let page = resp.streams.unwrap_or_default();
@@ -70,7 +77,11 @@ impl NatsClient {
                 .map_err(|e| anyhow!("Failed to parse CONSUMER.NAMES response: {e}"))?;
 
             if let Some(err) = resp.error {
-                return Err(anyhow!("JetStream API error {}: {}", err.code, err.description));
+                return Err(anyhow!(
+                    "JetStream API error {}: {}",
+                    err.code,
+                    err.description
+                ));
             }
 
             let page = resp.consumers.unwrap_or_default();
@@ -138,8 +149,8 @@ impl NatsClient {
     /// `ack_wait_secs` is converted to nanoseconds as required by the NATS API.
     pub async fn update_ack_wait(
         &self,
-        stream:        &str,
-        consumer:      &str,
+        stream: &str,
+        consumer: &str,
         ack_wait_secs: u64,
     ) -> Result<()> {
         let subject = format!("$JS.API.CONSUMER.UPDATE.{stream}.{consumer}");
@@ -152,7 +163,8 @@ impl NatsClient {
             }
         });
         let payload = Bytes::from(serde_json::to_vec(&body)?);
-        let msg = self.inner
+        let msg = self
+            .inner
             .request(subject.clone(), payload)
             .await
             .map_err(|e| anyhow!("CONSUMER.UPDATE request failed: {e}"))?;
@@ -162,8 +174,8 @@ impl NatsClient {
     /// Update `max_ack_pending` for a consumer.
     pub async fn update_max_ack_pending(
         &self,
-        stream:          &str,
-        consumer:        &str,
+        stream: &str,
+        consumer: &str,
         max_ack_pending: i64,
     ) -> Result<()> {
         let subject = format!("$JS.API.CONSUMER.UPDATE.{stream}.{consumer}");
@@ -175,7 +187,8 @@ impl NatsClient {
             }
         });
         let payload = Bytes::from(serde_json::to_vec(&body)?);
-        let msg = self.inner
+        let msg = self
+            .inner
             .request(subject.clone(), payload)
             .await
             .map_err(|e| anyhow!("CONSUMER.UPDATE request failed: {e}"))?;
@@ -183,15 +196,12 @@ impl NatsClient {
     }
 
     /// Update stream `max_msgs` via `$JS.API.STREAM.UPDATE`.
-    pub async fn update_stream_max_msgs(
-        &self,
-        stream:   &str,
-        max_msgs: i64,
-    ) -> Result<()> {
+    pub async fn update_stream_max_msgs(&self, stream: &str, max_msgs: i64) -> Result<()> {
         let subject = format!("$JS.API.STREAM.UPDATE.{stream}");
         let body = serde_json::json!({ "name": stream, "max_msgs": max_msgs });
         let payload = Bytes::from(serde_json::to_vec(&body)?);
-        let msg = self.inner
+        let msg = self
+            .inner
             .request(subject.clone(), payload)
             .await
             .map_err(|e| anyhow!("STREAM.UPDATE request failed: {e}"))?;
@@ -204,7 +214,10 @@ fn check_js_error(payload: &Bytes, subject: &str) -> Result<()> {
         .map_err(|e| anyhow!("Failed to parse {subject} response: {e}"))?;
     if let Some(err) = v.get("error") {
         let code = err.get("code").and_then(|c| c.as_u64()).unwrap_or(0);
-        let desc = err.get("description").and_then(|d| d.as_str()).unwrap_or("unknown");
+        let desc = err
+            .get("description")
+            .and_then(|d| d.as_str())
+            .unwrap_or("unknown");
         return Err(anyhow!("JetStream API error {code}: {desc}"));
     }
     Ok(())

@@ -62,7 +62,9 @@ impl HistoryStore {
     /// consumer is deleted and recreated mid-ring: the new snapshots have lower
     /// num_redelivered, which makes saturating_sub produce 0 deltas.
     pub fn trim_to_monotone(&mut self, key: &str) {
-        let Some(ring) = self.data.get_mut(key) else { return };
+        let Some(ring) = self.data.get_mut(key) else {
+            return;
+        };
         // Find the last reset point (where num_redelivered decreased).
         let mut reset_idx = 0;
         for i in 1..ring.len() {

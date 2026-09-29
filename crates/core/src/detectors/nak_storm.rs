@@ -25,7 +25,7 @@ use crate::types::{ConsumerSnapshot, Violation, ViolationType};
 const MIN_REDELIVERED: u64 = 2;
 
 pub fn detect(current: &ConsumerSnapshot, history: &HistoryStore) -> Option<Violation> {
-    let key   = current.key();
+    let key = current.key();
     let snaps = history.get(&key);
 
     // Require 2+ snapshots to confirm the condition is sustained.
@@ -48,8 +48,7 @@ pub fn detect(current: &ConsumerSnapshot, history: &HistoryStore) -> Option<Viol
     // Compute the delta to use as the "rate" proxy for the violation description.
     // For a persistent NAK loop over the same messages, the delta is 0 (stable gauge).
     // For an expanding loop (new messages entering), the delta is positive.
-    let elapsed_secs =
-        (current.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
+    let elapsed_secs = (current.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
     let redeliv_delta = current.num_redelivered.saturating_sub(prev.num_redelivered);
     let redelivery_rate_per_min = if elapsed_secs > 0.0 && redeliv_delta > 0 {
         (redeliv_delta as f64 / elapsed_secs) * 60.0

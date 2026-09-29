@@ -8,27 +8,27 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsApiError {
-    pub code:        u16,
+    pub code: u16,
     pub description: String,
 }
 
 /// $JS.API.STREAM.LIST response
 #[derive(Debug, Deserialize)]
 pub struct StreamListResponse {
-    pub total:   usize,
+    pub total: usize,
     pub streams: Option<Vec<StreamInfo>>,
-    pub error:   Option<JsApiError>,
+    pub error: Option<JsApiError>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StreamInfo {
     pub config: StreamConfig,
-    pub state:  StreamState,
+    pub state: StreamState,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StreamConfig {
-    pub name:     String,
+    pub name: String,
     pub subjects: Option<Vec<String>>,
     pub max_msgs: Option<i64>,
     pub max_bytes: Option<i64>,
@@ -36,42 +36,42 @@ pub struct StreamConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StreamState {
-    pub messages:   u64,
-    pub first_seq:  u64,
-    pub last_seq:   u64,
+    pub messages: u64,
+    pub first_seq: u64,
+    pub last_seq: u64,
     pub num_deleted: Option<u64>,
 }
 
 /// $JS.API.CONSUMER.NAMES.{stream} response
 #[derive(Debug, Deserialize)]
 pub struct ConsumerNamesResponse {
-    pub total:     usize,
+    pub total: usize,
     pub consumers: Option<Vec<String>>,
-    pub error:     Option<JsApiError>,
+    pub error: Option<JsApiError>,
 }
 
 /// $JS.API.CONSUMER.INFO.{stream}.{consumer} response
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConsumerInfo {
-    pub stream_name:     String,
-    pub name:            String,
-    pub config:          ConsumerConfig,
-    pub delivered:       SequenceInfo,
-    pub ack_floor:       SequenceInfo,
+    pub stream_name: String,
+    pub name: String,
+    pub config: ConsumerConfig,
+    pub delivered: SequenceInfo,
+    pub ack_floor: SequenceInfo,
     pub num_ack_pending: u64,
     pub num_redelivered: u64,
-    pub num_waiting:     u64,
-    pub num_pending:     u64,
-    pub error:           Option<JsApiError>,
+    pub num_waiting: u64,
+    pub num_pending: u64,
+    pub error: Option<JsApiError>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConsumerConfig {
-    pub durable_name:    Option<String>,
+    pub durable_name: Option<String>,
     /// ack_wait in nanoseconds as returned by NATS server
-    pub ack_wait:        Option<u64>,
+    pub ack_wait: Option<u64>,
     pub max_ack_pending: Option<i64>,
-    pub filter_subject:  Option<String>,
+    pub filter_subject: Option<String>,
 }
 
 impl ConsumerConfig {
@@ -87,7 +87,7 @@ impl ConsumerConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SequenceInfo {
     pub consumer_seq: u64,
-    pub stream_seq:   u64,
+    pub stream_seq: u64,
 }
 
 // ── Snapshot — point-in-time view of one consumer ────────────────────────────
@@ -96,18 +96,18 @@ pub struct SequenceInfo {
 /// Stored in HistoryStore to enable trend detection across polls.
 #[derive(Debug, Clone, Serialize)]
 pub struct ConsumerSnapshot {
-    pub stream_name:         String,
-    pub consumer_name:       String,
-    pub num_pending:         u64,
-    pub num_ack_pending:     u64,
-    pub num_redelivered:     u64,
-    pub max_ack_pending:     i64,
-    pub ack_wait_secs:       u64,
+    pub stream_name: String,
+    pub consumer_name: String,
+    pub num_pending: u64,
+    pub num_ack_pending: u64,
+    pub num_redelivered: u64,
+    pub max_ack_pending: i64,
+    pub ack_wait_secs: u64,
     pub delivered_stream_seq: u64,
     pub ack_floor_stream_seq: u64,
-    pub stream_first_seq:    u64,
-    pub stream_last_seq:     u64,
-    pub captured_at:         DateTime<Utc>,
+    pub stream_first_seq: u64,
+    pub stream_last_seq: u64,
+    pub captured_at: DateTime<Utc>,
 }
 
 impl ConsumerSnapshot {
@@ -116,7 +116,9 @@ impl ConsumerSnapshot {
     }
 
     pub fn pending_ratio(&self) -> f64 {
-        if self.max_ack_pending <= 0 { return 0.0; }
+        if self.max_ack_pending <= 0 {
+            return 0.0;
+        }
         self.num_ack_pending as f64 / self.max_ack_pending as f64
     }
 }
@@ -138,61 +140,61 @@ pub enum ViolationType {
     /// ack_wait shorter than actual processing time → messages redelivered while
     /// still being processed → duplicate execution.
     AckWaitViolation {
-        redeliveries_per_min:      f64,
-        current_ack_wait_secs:     u64,
+        redeliveries_per_min: f64,
+        current_ack_wait_secs: u64,
         recommended_ack_wait_secs: u64,
-        fix_command:               String,
+        fix_command: String,
     },
 
     /// Stream evicted messages before consumer could pull them → silent data loss.
     /// The consumer's ack_floor jumped past the stream's first_seq.
     SequenceGap {
-        gap_start:     u64,
-        gap_end:       u64,
+        gap_start: u64,
+        gap_end: u64,
         messages_lost: u64,
     },
 
     /// max_ack_pending too small for the consumer's concurrency + prefetch →
     /// NATS throttles delivery even when the consumer has capacity.
     MaxPendingThrottle {
-        current_max_pending:  i64,
-        recommended_min:      i64,
-        pending_ratio_pct:    f64,
+        current_max_pending: i64,
+        recommended_min: i64,
+        pending_ratio_pct: f64,
     },
 
     /// Consumer is NAKing stale messages → NATS redelivers → still stale →
     /// infinite redelivery loop consuming throughput without processing work.
     NakStorm {
         redelivery_rate_per_min: f64,
-        lag_growth_per_min:      f64,
+        lag_growth_per_min: f64,
     },
 
     /// Long-running tasks not sending in_progress acks → ack_wait fires →
     /// messages redelivered mid-processing → duplicate execution.
     MissingProgress {
         ack_pending_ratio_pct: f64,
-        ack_wait_secs:         u64,
+        ack_wait_secs: u64,
     },
 }
 
 impl ViolationType {
     pub fn name(&self) -> &'static str {
         match self {
-            ViolationType::AckWaitViolation   { .. } => "ACK_WAIT_VIOLATION",
-            ViolationType::SequenceGap        { .. } => "SEQUENCE_GAP",
+            ViolationType::AckWaitViolation { .. } => "ACK_WAIT_VIOLATION",
+            ViolationType::SequenceGap { .. } => "SEQUENCE_GAP",
             ViolationType::MaxPendingThrottle { .. } => "MAX_PENDING_THROTTLE",
-            ViolationType::NakStorm           { .. } => "NAK_STORM",
-            ViolationType::MissingProgress    { .. } => "MISSING_PROGRESS",
+            ViolationType::NakStorm { .. } => "NAK_STORM",
+            ViolationType::MissingProgress { .. } => "MISSING_PROGRESS",
         }
     }
 
     pub fn severity(&self) -> Severity {
         match self {
-            ViolationType::AckWaitViolation   { .. } => Severity::Critical,
-            ViolationType::SequenceGap        { .. } => Severity::Critical,
-            ViolationType::NakStorm           { .. } => Severity::Critical,
+            ViolationType::AckWaitViolation { .. } => Severity::Critical,
+            ViolationType::SequenceGap { .. } => Severity::Critical,
+            ViolationType::NakStorm { .. } => Severity::Critical,
             ViolationType::MaxPendingThrottle { .. } => Severity::Warning,
-            ViolationType::MissingProgress    { .. } => Severity::Warning,
+            ViolationType::MissingProgress { .. } => Severity::Warning,
         }
     }
 
@@ -214,20 +216,20 @@ impl ViolationType {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Violation {
-    pub stream_name:   String,
+    pub stream_name: String,
     pub consumer_name: String,
-    pub violation:     ViolationType,
-    pub severity:      Severity,
-    pub description:   String,
-    pub detected_at:   DateTime<Utc>,
+    pub violation: ViolationType,
+    pub severity: Severity,
+    pub description: String,
+    pub detected_at: DateTime<Utc>,
 }
 
 impl Violation {
     pub fn new(snapshot: &ConsumerSnapshot, violation: ViolationType) -> Self {
-        let severity    = violation.severity();
+        let severity = violation.severity();
         let description = violation.description();
         Self {
-            stream_name:   snapshot.stream_name.clone(),
+            stream_name: snapshot.stream_name.clone(),
             consumer_name: snapshot.consumer_name.clone(),
             violation,
             severity,
@@ -249,20 +251,20 @@ pub enum Health {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ConsumerHealth {
-    pub stream_name:   String,
+    pub stream_name: String,
     pub consumer_name: String,
-    pub health:        Health,
-    pub lag:           u64,
+    pub health: Health,
+    pub lag: u64,
     pub redeliveries_per_min: f64,
-    pub violations:    Vec<Violation>,
-    pub snapshot:      ConsumerSnapshot,
+    pub violations: Vec<Violation>,
+    pub snapshot: ConsumerSnapshot,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StreamHealth {
     pub stream_name: String,
-    pub config:      StreamConfig,
-    pub state:       StreamState,
-    pub health:      Health,
-    pub consumers:   Vec<ConsumerHealth>,
+    pub config: StreamConfig,
+    pub state: StreamState,
+    pub health: Health,
+    pub consumers: Vec<ConsumerHealth>,
 }

@@ -13,7 +13,10 @@ use futures_util::StreamExt;
 use tracing::info;
 
 #[derive(Parser)]
-#[command(name = "nats-lens-sim", about = "Trigger NATS JetStream violations for nats-lens demo")]
+#[command(
+    name = "nats-lens-sim",
+    about = "Trigger NATS JetStream violations for nats-lens demo"
+)]
 struct Args {
     #[arg(long, default_value = "nats://localhost:4222")]
     nats: String,
@@ -37,7 +40,9 @@ async fn main() -> Result<()> {
     let mut round = 0u32;
     loop {
         round += 1;
-        if args.rounds > 0 && round > args.rounds { break; }
+        if args.rounds > 0 && round > args.rounds {
+            break;
+        }
         info!("── Round {} ──────────────────────────────────────", round);
 
         tokio::join!(
@@ -56,28 +61,31 @@ async fn main() -> Result<()> {
 
 async fn ensure_streams(js: &jetstream::Context) -> Result<()> {
     js.get_or_create_stream(stream::Config {
-        name:         "ORDERS".into(),
-        subjects:     vec!["orders.>".into()],
+        name: "ORDERS".into(),
+        subjects: vec!["orders.>".into()],
         max_messages: 5_000,
-        storage:      stream::StorageType::Memory,
+        storage: stream::StorageType::Memory,
         ..Default::default()
-    }).await?;
+    })
+    .await?;
 
     js.get_or_create_stream(stream::Config {
-        name:         "EVENTS".into(),
-        subjects:     vec!["events.>".into()],
-        max_messages: 50,                          // tiny — easy to overflow
-        storage:      stream::StorageType::Memory,
+        name: "EVENTS".into(),
+        subjects: vec!["events.>".into()],
+        max_messages: 50, // tiny — easy to overflow
+        storage: stream::StorageType::Memory,
         ..Default::default()
-    }).await?;
+    })
+    .await?;
 
     js.get_or_create_stream(stream::Config {
-        name:         "PAYMENTS".into(),
-        subjects:     vec!["payments.>".into()],
+        name: "PAYMENTS".into(),
+        subjects: vec!["payments.>".into()],
         max_messages: 10_000,
-        storage:      stream::StorageType::Memory,
+        storage: stream::StorageType::Memory,
         ..Default::default()
-    }).await?;
+    })
+    .await?;
 
     info!("Streams ready (ORDERS / EVENTS / PAYMENTS)");
     Ok(())
@@ -89,26 +97,46 @@ async fn ensure_streams(js: &jetstream::Context) -> Result<()> {
 async fn simulate_orders(js: &jetstream::Context) {
     // Publish
     for i in 0..10u32 {
-        let _ = js.publish("orders.new", format!(r#"{{"order_id":{i}}}"#).into()).await;
+        let _ = js
+            .publish("orders.new", format!(r#"{{"order_id":{i}}}"#).into())
+            .await;
     }
     info!("[ORDERS] published 10 messages");
 
     let stream = match js.get_stream("ORDERS").await {
-        Ok(s) => s, Err(e) => { tracing::warn!("[ORDERS] {e}"); return; }
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("[ORDERS] {e}");
+            return;
+        }
     };
-    let consumer = match stream.get_or_create_consumer("order-processor", pull::Config {
-        durable_name:    Some("order-processor".into()),
-        ack_wait:        Duration::from_secs(5),
-        max_ack_pending: 3,
-        ..Default::default()
-    }).await {
-        Ok(c) => c, Err(e) => { tracing::warn!("[ORDERS] consumer: {e}"); return; }
+    let consumer = match stream
+        .get_or_create_consumer(
+            "order-processor",
+            pull::Config {
+                durable_name: Some("order-processor".into()),
+                ack_wait: Duration::from_secs(5),
+                max_ack_pending: 3,
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("[ORDERS] consumer: {e}");
+            return;
+        }
     };
 
     // Pull 3 — fills all pending slots — do NOT ack
-    let Ok(mut batch) = consumer.fetch().max_messages(3).messages().await else { return };
+    let Ok(mut batch) = consumer.fetch().max_messages(3).messages().await else {
+        return;
+    };
     let mut n = 0usize;
-    while let Some(Ok(_msg)) = batch.next().await { n += 1; }
+    while let Some(Ok(_msg)) = batch.next().await {
+        n += 1;
+    }
     info!("[ORDERS] pulled {n} messages, holding (ack_wait=5s will trigger redeliveries)");
 
     tokio::time::sleep(Duration::from_secs(9)).await;
@@ -121,23 +149,41 @@ async fn simulate_orders(js: &jetstream::Context) {
 async fn simulate_events(js: &jetstream::Context) {
     // Seed a few, pull+ack one to establish ack_floor
     for i in 0..5u32 {
-        let _ = js.publish("events.click", format!(r#"{{"seq":{i}}}"#).into()).await;
+        let _ = js
+            .publish("events.click", format!(r#"{{"seq":{i}}}"#).into())
+            .await;
     }
 
     let stream = match js.get_stream("EVENTS").await {
-        Ok(s) => s, Err(e) => { tracing::warn!("[EVENTS] {e}"); return; }
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("[EVENTS] {e}");
+            return;
+        }
     };
-    let consumer = match stream.get_or_create_consumer("event-handler", pull::Config {
-        durable_name:    Some("event-handler".into()),
-        ack_wait:        Duration::from_secs(10),
-        max_ack_pending: 25,
-        ..Default::default()
-    }).await {
-        Ok(c) => c, Err(e) => { tracing::warn!("[EVENTS] consumer: {e}"); return; }
+    let consumer = match stream
+        .get_or_create_consumer(
+            "event-handler",
+            pull::Config {
+                durable_name: Some("event-handler".into()),
+                ack_wait: Duration::from_secs(10),
+                max_ack_pending: 25,
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("[EVENTS] consumer: {e}");
+            return;
+        }
     };
 
     // Pull and ACK one to set ack_floor above 0
-    let Ok(mut batch) = consumer.fetch().max_messages(1).messages().await else { return };
+    let Ok(mut batch) = consumer.fetch().max_messages(1).messages().await else {
+        return;
+    };
     if let Some(Ok(msg)) = batch.next().await {
         let _ = msg.ack().await;
         info!("[EVENTS] acked 1 message — ack_floor established");
@@ -145,7 +191,9 @@ async fn simulate_events(js: &jetstream::Context) {
 
     // Flood 300 into a 50-msg stream — first ~250 evicted → SequenceGap
     for i in 0..300u32 {
-        let _ = js.publish("events.flood", format!(r#"{{"flood":{i}}}"#).into()).await;
+        let _ = js
+            .publish("events.flood", format!(r#"{{"flood":{i}}}"#).into())
+            .await;
     }
     info!("[EVENTS] flooded 300 msgs into 50-msg stream — SequenceGap should appear");
 
@@ -157,26 +205,46 @@ async fn simulate_events(js: &jetstream::Context) {
 // pending_ratio = 18/20 = 90% with ack_wait=120s → MissingProgress fires.
 async fn simulate_payments(js: &jetstream::Context) {
     for i in 0..25u32 {
-        let _ = js.publish("payments.charge", format!(r#"{{"payment_id":{i}}}"#).into()).await;
+        let _ = js
+            .publish("payments.charge", format!(r#"{{"payment_id":{i}}}"#).into())
+            .await;
     }
     info!("[PAYMENTS] published 25 messages");
 
     let stream = match js.get_stream("PAYMENTS").await {
-        Ok(s) => s, Err(e) => { tracing::warn!("[PAYMENTS] {e}"); return; }
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("[PAYMENTS] {e}");
+            return;
+        }
     };
-    let consumer = match stream.get_or_create_consumer("payment-processor", pull::Config {
-        durable_name:    Some("payment-processor".into()),
-        ack_wait:        Duration::from_secs(120),
-        max_ack_pending: 20,
-        ..Default::default()
-    }).await {
-        Ok(c) => c, Err(e) => { tracing::warn!("[PAYMENTS] consumer: {e}"); return; }
+    let consumer = match stream
+        .get_or_create_consumer(
+            "payment-processor",
+            pull::Config {
+                durable_name: Some("payment-processor".into()),
+                ack_wait: Duration::from_secs(120),
+                max_ack_pending: 20,
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("[PAYMENTS] consumer: {e}");
+            return;
+        }
     };
 
     // Pull 18 — fills 90% of pending slots — do NOT ack (simulates long tasks)
-    let Ok(mut batch) = consumer.fetch().max_messages(18).messages().await else { return };
+    let Ok(mut batch) = consumer.fetch().max_messages(18).messages().await else {
+        return;
+    };
     let mut n = 0usize;
-    while let Some(Ok(_msg)) = batch.next().await { n += 1; }
+    while let Some(Ok(_msg)) = batch.next().await {
+        n += 1;
+    }
     info!("[PAYMENTS] holding {n}/20 pending slots without in_progress acks — MissingProgress fires at >90%");
 
     tokio::time::sleep(Duration::from_secs(5)).await;

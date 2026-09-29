@@ -14,9 +14,9 @@ mod server;
 
 #[derive(Parser, Debug)]
 #[command(
-    name    = "nats-lens",
+    name = "nats-lens",
     version,
-    about   = "NATS JetStream delivery guarantee monitor",
+    about = "NATS JetStream delivery guarantee monitor"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -98,16 +98,21 @@ async fn main() -> Result<()> {
 
     // Extract all connection parameters before the command match so
     // they remain accessible regardless of which branch runs.
-    let nats_url  = cli.nats.clone();
-    let auth      = AuthConfig::from_cli(&cli);
-    let port      = cli.port;
-    let interval  = cli.interval;
+    let nats_url = cli.nats.clone();
+    let auth = AuthConfig::from_cli(&cli);
+    let port = cli.port;
+    let interval = cli.interval;
 
     match cli.command {
-        Some(Command::Init { format, fail_on_critical }) => {
+        Some(Command::Init {
+            format,
+            fail_on_critical,
+        }) => {
             let nats = connect(&nats_url, &auth).await?;
             let had_critical = audit::run_audit(nats, &format).await?;
-            if fail_on_critical && had_critical { std::process::exit(1); }
+            if fail_on_critical && had_critical {
+                std::process::exit(1);
+            }
         }
         Some(Command::Run { port, interval }) => {
             run_dashboard(&nats_url, &auth, port, interval).await?;
@@ -123,25 +128,25 @@ async fn main() -> Result<()> {
 // ── Auth configuration ────────────────────────────────────────────────────────
 
 struct AuthConfig {
-    creds:    Option<String>,
-    token:    Option<String>,
+    creds: Option<String>,
+    token: Option<String>,
     username: Option<String>,
     password: Option<String>,
-    tls_ca:   Option<String>,
+    tls_ca: Option<String>,
     tls_cert: Option<String>,
-    tls_key:  Option<String>,
+    tls_key: Option<String>,
 }
 
 impl AuthConfig {
     fn from_cli(cli: &Cli) -> Self {
         Self {
-            creds:    cli.creds.clone(),
-            token:    cli.token.clone(),
+            creds: cli.creds.clone(),
+            token: cli.token.clone(),
             username: cli.username.clone(),
             password: cli.password.clone(),
-            tls_ca:   cli.tls_ca.clone(),
+            tls_ca: cli.tls_ca.clone(),
             tls_cert: cli.tls_cert.clone(),
-            tls_key:  cli.tls_key.clone(),
+            tls_key: cli.tls_key.clone(),
         }
     }
 }
@@ -180,12 +185,12 @@ async fn connect(url: &str, auth: &AuthConfig) -> Result<async_nats::Client> {
 // ── Dashboard runner ──────────────────────────────────────────────────────────
 
 async fn run_dashboard(url: &str, auth: &AuthConfig, port: u16, interval: u64) -> Result<()> {
-    let nats   = connect(url, auth).await?;
+    let nats = connect(url, auth).await?;
     let engine = Arc::new(nats_lens_core::engine::Engine::new(nats));
 
-    let state       = engine.state();
-    let tx          = engine.sender();
-    let history     = engine.history_store();
+    let state = engine.state();
+    let tx = engine.sender();
+    let history = engine.history_store();
     let nats_client = engine.nats_client_arc();
 
     let engine_bg = Arc::clone(&engine);

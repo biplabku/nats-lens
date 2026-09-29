@@ -8,14 +8,17 @@ use futures_util::StreamExt;
 use nats_lens_core::engine::Engine;
 use nats_lens_core::history::HistoryStore;
 use nats_lens_core::types::Violation;
-use tokio::sync::Mutex;
 use tokio::sync::broadcast;
+use tokio::sync::Mutex;
 use tracing::info;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
 #[derive(Parser)]
-#[command(name = "nats-lens-eval", about = "Paper evaluation harness for nats-lens")]
+#[command(
+    name = "nats-lens-eval",
+    about = "Paper evaluation harness for nats-lens"
+)]
 struct Args {
     #[arg(long, default_value = "nats://localhost:4222")]
     nats: String,
@@ -41,22 +44,22 @@ struct Args {
 
 #[derive(Debug, serde::Serialize)]
 struct EvalRow {
-    scenario:              String,
-    round:                 u32,
+    scenario: String,
+    round: u32,
     /// Was any violation of the expected type detected?
-    detected:              bool,
+    detected: bool,
     /// Milliseconds from injection_start to first detection event. None = not detected.
-    detection_latency_ms:  Option<u64>,
+    detection_latency_ms: Option<u64>,
     /// Was the correct violation type reported (not a different type)?
-    correct_type:          bool,
+    correct_type: bool,
     /// Timestamp of injection start (ISO-8601)
-    injected_at:           String,
+    injected_at: String,
 }
 
 #[derive(Debug, serde::Serialize)]
 struct FalsePositiveRow {
-    round:            u32,
-    elapsed_secs:     u64,
+    round: u32,
+    elapsed_secs: u64,
     violations_count: u32,
 }
 
@@ -68,7 +71,7 @@ async fn main() -> Result<()> {
         .with_target(false)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "nats_lens_eval=info,nats_lens_core=info".parse().unwrap())
+                .unwrap_or_else(|_| "nats_lens_eval=info,nats_lens_core=info".parse().unwrap()),
         )
         .init();
 
@@ -77,16 +80,19 @@ async fn main() -> Result<()> {
 
     info!("Connecting to NATS at {}", args.nats);
     let client = async_nats::connect(&args.nats).await?;
-    info!("Connected. Starting evaluation ({} rounds per scenario)", args.rounds);
+    info!(
+        "Connected. Starting evaluation ({} rounds per scenario)",
+        args.rounds
+    );
     info!("");
 
     // ── Embed engine for precise timing ──────────────────────────────────────
     // The engine polls every poll_interval seconds and broadcasts violations.
     // We subscribe to that broadcast channel to measure detection latency.
-    let engine   = Arc::new(Engine::new(client.clone()));
-    let tx       = engine.sender();
-    let history  = engine.history_store();
-    let poll_ms  = Duration::from_secs(args.poll_interval);
+    let engine = Arc::new(Engine::new(client.clone()));
+    let tx = engine.sender();
+    let history = engine.history_store();
+    let poll_ms = Duration::from_secs(args.poll_interval);
 
     let engine_bg = Arc::clone(&engine);
     tokio::spawn(async move { engine_bg.run(poll_ms).await });
@@ -100,11 +106,14 @@ async fn main() -> Result<()> {
 
     // ── Run all scenarios ─────────────────────────────────────────────────────
 
-    let mut detection_rows: Vec<EvalRow>        = Vec::new();
-    let mut fp_rows:        Vec<FalsePositiveRow> = Vec::new();
+    let mut detection_rows: Vec<EvalRow> = Vec::new();
+    let mut fp_rows: Vec<FalsePositiveRow> = Vec::new();
 
     // Scenario 1: ACK_WAIT_VIOLATION
-    info!("── Scenario 1/5: ACK_WAIT_VIOLATION ({} rounds) ──", args.rounds);
+    info!(
+        "── Scenario 1/5: ACK_WAIT_VIOLATION ({} rounds) ──",
+        args.rounds
+    );
     let rows = run_ack_wait_scenario(&js, &tx, args.rounds, args.poll_interval).await?;
     let n_detected = rows.iter().filter(|r| r.detected).count();
     info!("  Detected: {}/{}", n_detected, args.rounds);
@@ -118,7 +127,10 @@ async fn main() -> Result<()> {
     detection_rows.extend(rows);
 
     // Scenario 3: MAX_PENDING_THROTTLE
-    info!("── Scenario 3/5: MAX_PENDING_THROTTLE ({} rounds) ──", args.rounds);
+    info!(
+        "── Scenario 3/5: MAX_PENDING_THROTTLE ({} rounds) ──",
+        args.rounds
+    );
     let rows = run_throttle_scenario(&js, &tx, args.rounds, args.poll_interval).await?;
     let n_detected = rows.iter().filter(|r| r.detected).count();
     info!("  Detected: {}/{}", n_detected, args.rounds);
@@ -132,14 +144,20 @@ async fn main() -> Result<()> {
     detection_rows.extend(rows);
 
     // Scenario 5: MISSING_PROGRESS
-    info!("── Scenario 5/5: MISSING_PROGRESS ({} rounds) ──", args.rounds);
+    info!(
+        "── Scenario 5/5: MISSING_PROGRESS ({} rounds) ──",
+        args.rounds
+    );
     let rows = run_missing_progress_scenario(&js, &tx, args.rounds, args.poll_interval).await?;
     let n_detected = rows.iter().filter(|r| r.detected).count();
     info!("  Detected: {}/{}", n_detected, args.rounds);
     detection_rows.extend(rows);
 
     // Scenario 6: False positives under healthy operation
-    info!("── Scenario 6: FALSE POSITIVE RATE ({}s healthy operation) ──", args.fp_duration);
+    info!(
+        "── Scenario 6: FALSE POSITIVE RATE ({}s healthy operation) ──",
+        args.fp_duration
+    );
     let fp = run_false_positive_scenario(&js, &tx, args.fp_duration, args.poll_interval).await?;
     let total_fp: u32 = fp.iter().map(|r| r.violations_count).sum();
     info!("  Total false positives in 60s: {}", total_fp);
@@ -148,8 +166,14 @@ async fn main() -> Result<()> {
     // Scenario 7: Overhead measurement
     info!("── Scenario 7: OVERHEAD MEASUREMENT ──");
     let overhead = measure_overhead(&js, args.poll_interval).await?;
-    info!("  NATS API requests per poll: {}", overhead.api_requests_per_poll);
-    info!("  Memory (history store): {} bytes estimated", overhead.history_bytes);
+    info!(
+        "  NATS API requests per poll: {}",
+        overhead.api_requests_per_poll
+    );
+    info!(
+        "  Memory (history store): {} bytes estimated",
+        overhead.history_bytes
+    );
     info!("  Streams monitored: {}", overhead.stream_count);
     info!("  Consumers monitored: {}", overhead.consumer_count);
     let overhead_path = format!("{}/overhead_results.csv", args.out_dir);
@@ -194,21 +218,20 @@ async fn wait_for_violation(
     timeout_ms: u64,
 ) -> Option<u64> {
     let mut rx = tx.subscribe();
-    let start  = Instant::now();
+    let start = Instant::now();
     let timeout = Duration::from_millis(timeout_ms);
 
     loop {
-        match tokio::time::timeout(
-            timeout.saturating_sub(start.elapsed()),
-            rx.recv(),
-        ).await {
+        match tokio::time::timeout(timeout.saturating_sub(start.elapsed()), rx.recv()).await {
             Ok(Ok(v)) => {
                 let vtype = v.violation.name();
                 if vtype == expected_type {
                     return Some(start.elapsed().as_millis() as u64);
                 }
                 // Other violation type — keep waiting
-                if start.elapsed() >= timeout { return None; }
+                if start.elapsed() >= timeout {
+                    return None;
+                }
             }
             _ => return None,
         }
@@ -224,9 +247,9 @@ async fn wait_for_violation(
 // so each pull triggers another redeliver cycle, growing num_redelivered
 // across every engine poll snapshot.
 async fn run_ack_wait_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
-    rounds:        u32,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
+    rounds: u32,
     poll_interval: u64,
 ) -> Result<Vec<EvalRow>> {
     ensure_stream(js, "EVAL_ACK", "eval.ack.>", 5_000, None).await?;
@@ -235,31 +258,42 @@ async fn run_ack_wait_scenario(
     for round in 1..=rounds {
         // Publish enough messages to keep the consumer busy across all cycles
         for i in 0..20u32 {
-            let _ = js.publish("eval.ack.msg", format!(r#"{{"i":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.ack.msg", format!(r#"{{"i":{i}}}"#).into())
+                .await;
         }
 
         let stream = js.get_stream("EVAL_ACK").await?;
-        let _consumer = stream.get_or_create_consumer(
-            "eval-ack-consumer",
-            pull::Config {
-                durable_name:    Some("eval-ack-consumer".into()),
-                ack_wait:        Duration::from_secs(4), // short so redeliveries cycle fast
-                max_ack_pending: 5,
-                ..Default::default()
-            },
-        ).await?;
+        let _consumer = stream
+            .get_or_create_consumer(
+                "eval-ack-consumer",
+                pull::Config {
+                    durable_name: Some("eval-ack-consumer".into()),
+                    ack_wait: Duration::from_secs(4), // short so redeliveries cycle fast
+                    max_ack_pending: 5,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         let injected_at = chrono::Utc::now().to_rfc3339();
 
         // Background puller: continuously pulls messages without acking.
         // Each pull-without-ack → ack_wait fires → redeliver → puller pulls again.
         // This creates a steady stream of growing num_redelivered across snapshots.
-        let js_bg  = js.clone();
+        let js_bg = js.clone();
         let puller = tokio::spawn(async move {
             let ack_wait_secs = 4u64;
             loop {
-                let Ok(stream) = js_bg.get_stream("EVAL_ACK").await else { break };
-                let Ok(c) = stream.get_consumer::<pull::Config>("eval-ack-consumer").await else { break };
+                let Ok(stream) = js_bg.get_stream("EVAL_ACK").await else {
+                    break;
+                };
+                let Ok(c) = stream
+                    .get_consumer::<pull::Config>("eval-ack-consumer")
+                    .await
+                else {
+                    break;
+                };
                 // Pull without acking — fills max_ack_pending slots
                 if let Ok(mut batch) = c.fetch().max_messages(5).messages().await {
                     while let Some(Ok(_msg)) = batch.next().await {
@@ -279,15 +313,17 @@ async fn run_ack_wait_scenario(
         puller.abort();
 
         rows.push(EvalRow {
-            scenario:             "ACK_WAIT_VIOLATION".into(),
+            scenario: "ACK_WAIT_VIOLATION".into(),
             round,
-            detected:             latency.is_some(),
+            detected: latency.is_some(),
             detection_latency_ms: latency,
-            correct_type:         latency.is_some(),
+            correct_type: latency.is_some(),
             injected_at,
         });
 
-        let Ok(s) = js.get_stream("EVAL_ACK").await else { continue };
+        let Ok(s) = js.get_stream("EVAL_ACK").await else {
+            continue;
+        };
         let _ = s.delete_consumer("eval-ack-consumer").await;
         let _ = s.purge().await;
         tokio::time::sleep(Duration::from_secs(poll_interval + 1)).await;
@@ -299,9 +335,9 @@ async fn run_ack_wait_scenario(
 // ── Scenario 2: SEQUENCE_GAP ─────────────────────────────────────────────────
 // Flood 200 messages into a 50-msg stream while consumer has established ack_floor.
 async fn run_gap_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
-    rounds:        u32,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
+    rounds: u32,
     poll_interval: u64,
 ) -> Result<Vec<EvalRow>> {
     ensure_stream(js, "EVAL_GAP", "eval.gap.>", 50, Some(50)).await?;
@@ -310,40 +346,50 @@ async fn run_gap_scenario(
     for round in 1..=rounds {
         // Establish ack_floor by pulling+acking one message
         for i in 0..3u32 {
-            let _ = js.publish("eval.gap.seed", format!(r#"{{"i":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.gap.seed", format!(r#"{{"i":{i}}}"#).into())
+                .await;
         }
 
         let stream = js.get_stream("EVAL_GAP").await?;
-        let consumer = stream.get_or_create_consumer(
-            "eval-gap-consumer",
-            pull::Config {
-                durable_name:    Some("eval-gap-consumer".into()),
-                ack_wait:        Duration::from_secs(30),
-                max_ack_pending: 25,
-                ..Default::default()
-            },
-        ).await?;
+        let consumer = stream
+            .get_or_create_consumer(
+                "eval-gap-consumer",
+                pull::Config {
+                    durable_name: Some("eval-gap-consumer".into()),
+                    ack_wait: Duration::from_secs(30),
+                    max_ack_pending: 25,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         // Pull and ACK one message — establishes ack_floor > 0
-        let Ok(mut batch) = consumer.fetch().max_messages(1).messages().await else { continue };
-        if let Some(Ok(msg)) = batch.next().await { let _ = msg.ack().await; }
+        let Ok(mut batch) = consumer.fetch().max_messages(1).messages().await else {
+            continue;
+        };
+        if let Some(Ok(msg)) = batch.next().await {
+            let _ = msg.ack().await;
+        }
 
-        let injected_at  = chrono::Utc::now().to_rfc3339();
+        let injected_at = chrono::Utc::now().to_rfc3339();
 
         // Flood 200 messages into the 50-msg stream → evicts ~150 → gap
         for i in 0..200u32 {
-            let _ = js.publish("eval.gap.flood", format!(r#"{{"flood":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.gap.flood", format!(r#"{{"flood":{i}}}"#).into())
+                .await;
         }
 
         let timeout_ms = poll_interval * 3 * 1000 + 2000;
         let latency = wait_for_violation(tx, "SEQUENCE_GAP", timeout_ms).await;
 
         rows.push(EvalRow {
-            scenario:             "SEQUENCE_GAP".into(),
+            scenario: "SEQUENCE_GAP".into(),
             round,
-            detected:             latency.is_some(),
+            detected: latency.is_some(),
             detection_latency_ms: latency,
-            correct_type:         latency.is_some(),
+            correct_type: latency.is_some(),
             injected_at,
         });
 
@@ -358,9 +404,9 @@ async fn run_gap_scenario(
 
 // ── Scenario 3: MAX_PENDING_THROTTLE ─────────────────────────────────────────
 async fn run_throttle_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
-    rounds:        u32,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
+    rounds: u32,
     poll_interval: u64,
 ) -> Result<Vec<EvalRow>> {
     ensure_stream(js, "EVAL_THROT", "eval.throt.>", 5_000, None).await?;
@@ -368,35 +414,41 @@ async fn run_throttle_scenario(
 
     for round in 1..=rounds {
         for i in 0..10u32 {
-            let _ = js.publish("eval.throt.msg", format!(r#"{{"i":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.throt.msg", format!(r#"{{"i":{i}}}"#).into())
+                .await;
         }
 
         let stream = js.get_stream("EVAL_THROT").await?;
-        let consumer = stream.get_or_create_consumer(
-            "eval-throt-consumer",
-            pull::Config {
-                durable_name:    Some("eval-throt-consumer".into()),
-                ack_wait:        Duration::from_secs(60),
-                max_ack_pending: 3, // tiny → fills immediately
-                ..Default::default()
-            },
-        ).await?;
+        let consumer = stream
+            .get_or_create_consumer(
+                "eval-throt-consumer",
+                pull::Config {
+                    durable_name: Some("eval-throt-consumer".into()),
+                    ack_wait: Duration::from_secs(60),
+                    max_ack_pending: 3, // tiny → fills immediately
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         let injected_at = chrono::Utc::now().to_rfc3339();
 
         // Pull exactly max_ack_pending messages without acking → throttle
-        let Ok(mut batch) = consumer.fetch().max_messages(3).messages().await else { continue };
+        let Ok(mut batch) = consumer.fetch().max_messages(3).messages().await else {
+            continue;
+        };
         while let Some(Ok(_)) = batch.next().await {}
 
         let timeout_ms = poll_interval * 3 * 1000 + 2000;
         let latency = wait_for_violation(tx, "MAX_PENDING_THROTTLE", timeout_ms).await;
 
         rows.push(EvalRow {
-            scenario:             "MAX_PENDING_THROTTLE".into(),
+            scenario: "MAX_PENDING_THROTTLE".into(),
             round,
-            detected:             latency.is_some(),
+            detected: latency.is_some(),
             detection_latency_ms: latency,
-            correct_type:         latency.is_some(),
+            correct_type: latency.is_some(),
             injected_at,
         });
 
@@ -415,10 +467,10 @@ async fn run_throttle_scenario(
 // Fix: spawn a background NAKer that continuously NAKs throughout the full
 // detection window, keeping redeliveries growing across every poll snapshot.
 async fn run_nak_storm_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
-    history:       &Arc<Mutex<HistoryStore>>,
-    rounds:        u32,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
+    history: &Arc<Mutex<HistoryStore>>,
+    rounds: u32,
     poll_interval: u64,
 ) -> Result<Vec<EvalRow>> {
     ensure_stream(js, "EVAL_NAK", "eval.nak.>", 5_000, None).await?;
@@ -427,19 +479,23 @@ async fn run_nak_storm_scenario(
     for round in 1..=rounds {
         // Publish enough messages to sustain the NAK loop across all poll cycles
         for i in 0..50u32 {
-            let _ = js.publish("eval.nak.msg", format!(r#"{{"i":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.nak.msg", format!(r#"{{"i":{i}}}"#).into())
+                .await;
         }
 
         let stream = js.get_stream("EVAL_NAK").await?;
-        let _consumer = stream.get_or_create_consumer(
-            "eval-nak-consumer",
-            pull::Config {
-                durable_name:    Some("eval-nak-consumer".into()),
-                ack_wait:        Duration::from_secs(30), // long ack_wait so it doesn't interfere
-                max_ack_pending: 50,
-                ..Default::default()
-            },
-        ).await?;
+        let _consumer = stream
+            .get_or_create_consumer(
+                "eval-nak-consumer",
+                pull::Config {
+                    durable_name: Some("eval-nak-consumer".into()),
+                    ack_wait: Duration::from_secs(30), // long ack_wait so it doesn't interfere
+                    max_ack_pending: 50,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         let injected_at = chrono::Utc::now().to_rfc3339();
 
@@ -447,20 +503,27 @@ async fn run_nak_storm_scenario(
         // exactly 500ms after each NAK. With 5 messages per cycle:
         //   5 msgs × (3000ms / 500ms) = 30 redeliveries per poll interval
         //   Rate = 30/3s × 60 = 600/min >> 5/min threshold → guaranteed detection.
-        let js_bg  = js.clone();
+        let js_bg = js.clone();
         let nakker = tokio::spawn(async move {
             loop {
-                let Ok(stream) = js_bg.get_stream("EVAL_NAK").await else { break };
-                let Ok(c) = stream.get_consumer::<pull::Config>("eval-nak-consumer").await else { break };
+                let Ok(stream) = js_bg.get_stream("EVAL_NAK").await else {
+                    break;
+                };
+                let Ok(c) = stream
+                    .get_consumer::<pull::Config>("eval-nak-consumer")
+                    .await
+                else {
+                    break;
+                };
                 if let Ok(mut batch) = c.fetch().max_messages(5).messages().await {
                     let mut got = false;
                     while let Some(Ok(msg)) = batch.next().await {
                         // Explicit 500ms backoff → NATS redelivers after 500ms
-                        let _ = msg.ack_with(
-                            async_nats::jetstream::AckKind::Nak(
-                                Some(Duration::from_millis(500))
-                            )
-                        ).await;
+                        let _ = msg
+                            .ack_with(async_nats::jetstream::AckKind::Nak(Some(
+                                Duration::from_millis(500),
+                            )))
+                            .await;
                         got = true;
                     }
                     if !got {
@@ -481,19 +544,24 @@ async fn run_nak_storm_scenario(
         nakker.abort();
 
         rows.push(EvalRow {
-            scenario:             "NAK_STORM".into(),
+            scenario: "NAK_STORM".into(),
             round,
-            detected:             latency.is_some(),
+            detected: latency.is_some(),
             detection_latency_ms: latency,
-            correct_type:         latency.is_some(),
+            correct_type: latency.is_some(),
             injected_at,
         });
 
-        let Ok(s) = js.get_stream("EVAL_NAK").await else { continue };
+        let Ok(s) = js.get_stream("EVAL_NAK").await else {
+            continue;
+        };
         let _ = s.delete_consumer("eval-nak-consumer").await;
         let _ = s.purge().await;
         // Clear stale history so old num_redelivered doesn't poison the next round.
-        history.lock().await.clear_consumer("EVAL_NAK/eval-nak-consumer");
+        history
+            .lock()
+            .await
+            .clear_consumer("EVAL_NAK/eval-nak-consumer");
         tokio::time::sleep(Duration::from_secs(poll_interval * 2)).await;
     }
 
@@ -502,9 +570,9 @@ async fn run_nak_storm_scenario(
 
 // ── Scenario 5: MISSING_PROGRESS ─────────────────────────────────────────────
 async fn run_missing_progress_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
-    rounds:        u32,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
+    rounds: u32,
     poll_interval: u64,
 ) -> Result<Vec<EvalRow>> {
     ensure_stream(js, "EVAL_PROG", "eval.prog.>", 5_000, None).await?;
@@ -512,35 +580,41 @@ async fn run_missing_progress_scenario(
 
     for round in 1..=rounds {
         for i in 0..25u32 {
-            let _ = js.publish("eval.prog.msg", format!(r#"{{"i":{i}}}"#).into()).await;
+            let _ = js
+                .publish("eval.prog.msg", format!(r#"{{"i":{i}}}"#).into())
+                .await;
         }
 
         let stream = js.get_stream("EVAL_PROG").await?;
-        let consumer = stream.get_or_create_consumer(
-            "eval-prog-consumer",
-            pull::Config {
-                durable_name:    Some("eval-prog-consumer".into()),
-                ack_wait:        Duration::from_secs(120),
-                max_ack_pending: 20,
-                ..Default::default()
-            },
-        ).await?;
+        let consumer = stream
+            .get_or_create_consumer(
+                "eval-prog-consumer",
+                pull::Config {
+                    durable_name: Some("eval-prog-consumer".into()),
+                    ack_wait: Duration::from_secs(120),
+                    max_ack_pending: 20,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         let injected_at = chrono::Utc::now().to_rfc3339();
 
         // Pull 19/20 slots — 95% pending ratio → MISSING_PROGRESS fires
-        let Ok(mut batch) = consumer.fetch().max_messages(19).messages().await else { continue };
+        let Ok(mut batch) = consumer.fetch().max_messages(19).messages().await else {
+            continue;
+        };
         while let Some(Ok(_)) = batch.next().await {}
 
         let timeout_ms = poll_interval * 3 * 1000 + 2000;
         let latency = wait_for_violation(tx, "MISSING_PROGRESS", timeout_ms).await;
 
         rows.push(EvalRow {
-            scenario:             "MISSING_PROGRESS".into(),
+            scenario: "MISSING_PROGRESS".into(),
             round,
-            detected:             latency.is_some(),
+            detected: latency.is_some(),
             detection_latency_ms: latency,
-            correct_type:         latency.is_some(),
+            correct_type: latency.is_some(),
             injected_at,
         });
 
@@ -559,22 +633,22 @@ async fn run_missing_progress_scenario(
 //   - max_ack_pending: 10, 64, 256, 512
 //   - processing rates: 1 msg/s to 50 msg/s
 async fn run_false_positive_scenario(
-    js:            &jetstream::Context,
-    tx:            &broadcast::Sender<Violation>,
+    js: &jetstream::Context,
+    tx: &broadcast::Sender<Violation>,
     duration_secs: u64,
     poll_interval: u64,
 ) -> Result<Vec<FalsePositiveRow>> {
     // Create diverse streams with different configurations
     let configs: &[(u64, i64, &str, u64)] = &[
         // (ack_wait_secs, max_ack_pending, subject, publish_interval_ms)
-        (30,  10,  "eval.fp.fast",   20),   // fast publisher, small pending
-        (60,  64,  "eval.fp.med",    100),  // medium config
-        (120, 256, "eval.fp.slow",   500),  // slow publisher, large pending
-        (300, 512, "eval.fp.bulk",   50),   // bulk throughput
-        (30,  10,  "eval.fp.extra1", 200),  // extra consumers at default settings
+        (30, 10, "eval.fp.fast", 20),    // fast publisher, small pending
+        (60, 64, "eval.fp.med", 100),    // medium config
+        (120, 256, "eval.fp.slow", 500), // slow publisher, large pending
+        (300, 512, "eval.fp.bulk", 50),  // bulk throughput
+        (30, 10, "eval.fp.extra1", 200), // extra consumers at default settings
     ];
 
-    let mut publishers  = Vec::new();
+    let mut publishers = Vec::new();
     let mut consumers_v = Vec::new();
 
     for (i, &(ack_wait, max_pending, subject, pub_ms)) in configs.iter().enumerate() {
@@ -582,15 +656,17 @@ async fn run_false_positive_scenario(
         ensure_stream(js, &stream_name, &format!("{subject}.>"), 10_000, None).await?;
         let stream = js.get_stream(&stream_name).await?;
         let consumer_name = format!("fp-consumer-{i}");
-        let _consumer = stream.get_or_create_consumer(
-            &consumer_name,
-            pull::Config {
-                durable_name:    Some(consumer_name.clone()),
-                ack_wait:        Duration::from_secs(ack_wait),
-                max_ack_pending: max_pending,
-                ..Default::default()
-            },
-        ).await?;
+        let _consumer = stream
+            .get_or_create_consumer(
+                &consumer_name,
+                pull::Config {
+                    durable_name: Some(consumer_name.clone()),
+                    ack_wait: Duration::from_secs(ack_wait),
+                    max_ack_pending: max_pending,
+                    ..Default::default()
+                },
+            )
+            .await?;
 
         // Publisher for this stream
         let js_p = js.clone();
@@ -598,7 +674,9 @@ async fn run_false_positive_scenario(
         publishers.push(tokio::spawn(async move {
             let mut seq = 0u32;
             loop {
-                let _ = js_p.publish(subj.clone(), format!(r#"{{"seq":{seq}}}"#).into()).await;
+                let _ = js_p
+                    .publish(subj.clone(), format!(r#"{{"seq":{seq}}}"#).into())
+                    .await;
                 seq += 1;
                 tokio::time::sleep(Duration::from_millis(pub_ms)).await;
             }
@@ -608,8 +686,12 @@ async fn run_false_positive_scenario(
         let js_c = js.clone();
         consumers_v.push(tokio::spawn(async move {
             loop {
-                let Ok(stream) = js_c.get_stream(&stream_name).await else { break };
-                let Ok(c) = stream.get_consumer::<pull::Config>(&consumer_name).await else { break };
+                let Ok(stream) = js_c.get_stream(&stream_name).await else {
+                    break;
+                };
+                let Ok(c) = stream.get_consumer::<pull::Config>(&consumer_name).await else {
+                    break;
+                };
                 if let Ok(mut batch) = c.fetch().max_messages(10).messages().await {
                     while let Some(Ok(msg)) = batch.next().await {
                         let _ = msg.ack().await; // always promptly ack
@@ -623,22 +705,26 @@ async fn run_false_positive_scenario(
     // Legacy single stream for backward compatibility
     ensure_stream(js, "EVAL_HEALTHY", "eval.healthy.>", 10_000, None).await?;
     let stream = js.get_stream("EVAL_HEALTHY").await?;
-    let consumer = stream.get_or_create_consumer(
-        "eval-healthy-consumer",
-        pull::Config {
-            durable_name:    Some("eval-healthy-consumer".into()),
-            ack_wait:        Duration::from_secs(300),
-            max_ack_pending: 512,
-            ..Default::default()
-        },
-    ).await?;
+    let consumer = stream
+        .get_or_create_consumer(
+            "eval-healthy-consumer",
+            pull::Config {
+                durable_name: Some("eval-healthy-consumer".into()),
+                ack_wait: Duration::from_secs(300),
+                max_ack_pending: 512,
+                ..Default::default()
+            },
+        )
+        .await?;
 
     // Actively publish and process messages correctly throughout the window
-    let js_clone  = js.clone();
+    let js_clone = js.clone();
     let publisher = tokio::spawn(async move {
         let mut seq = 0u32;
         loop {
-            let _ = js_clone.publish("eval.healthy.msg", format!(r#"{{"seq":{seq}}}"#).into()).await;
+            let _ = js_clone
+                .publish("eval.healthy.msg", format!(r#"{{"seq":{seq}}}"#).into())
+                .await;
             seq += 1;
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
@@ -647,7 +733,9 @@ async fn run_false_positive_scenario(
     // Correct consumer: pull and promptly ACK
     let correct_consumer = tokio::spawn(async move {
         loop {
-            let Ok(mut batch) = consumer.fetch().max_messages(10).messages().await else { break };
+            let Ok(mut batch) = consumer.fetch().max_messages(10).messages().await else {
+                break;
+            };
             while let Some(Ok(msg)) = batch.next().await {
                 let _ = msg.ack().await;
             }
@@ -656,11 +744,11 @@ async fn run_false_positive_scenario(
     });
 
     // Count violations over the window
-    let mut rx    = tx.subscribe();
-    let mut rows  = Vec::new();
-    let start     = Instant::now();
+    let mut rx = tx.subscribe();
+    let mut rows = Vec::new();
+    let start = Instant::now();
     let mut count = 0u32;
-    let mut tick  = 0u64;
+    let mut tick = 0u64;
 
     while start.elapsed().as_secs() < duration_secs {
         // Sample every poll_interval
@@ -677,8 +765,8 @@ async fn run_false_positive_scenario(
         }
 
         rows.push(FalsePositiveRow {
-            round:            1,
-            elapsed_secs:     tick,
+            round: 1,
+            elapsed_secs: tick,
             violations_count: count,
         });
     }
@@ -686,11 +774,17 @@ async fn run_false_positive_scenario(
     // Abort all tasks
     publisher.abort();
     correct_consumer.abort();
-    for p in publishers  { p.abort(); }
-    for c in consumers_v { c.abort(); }
+    for p in publishers {
+        p.abort();
+    }
+    for c in consumers_v {
+        c.abort();
+    }
 
     if let Ok(s) = js.get_stream("EVAL_HEALTHY").await {
-        tokio::spawn(async move { let _ = s.delete_consumer("eval-healthy-consumer").await; });
+        tokio::spawn(async move {
+            let _ = s.delete_consumer("eval-healthy-consumer").await;
+        });
     }
 
     Ok(rows)
@@ -699,19 +793,21 @@ async fn run_false_positive_scenario(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn ensure_stream(
-    js:       &jetstream::Context,
-    name:     &str,
-    subject:  &str,
+    js: &jetstream::Context,
+    name: &str,
+    subject: &str,
     max_msgs: i64,
     max_msgs_override: Option<i64>,
 ) -> Result<()> {
-    let _ = js.get_or_create_stream(stream::Config {
-        name:         name.into(),
-        subjects:     vec![subject.into()],
-        max_messages: max_msgs_override.unwrap_or(max_msgs),
-        storage:      stream::StorageType::Memory,
-        ..Default::default()
-    }).await?;
+    let _ = js
+        .get_or_create_stream(stream::Config {
+            name: name.into(),
+            subjects: vec![subject.into()],
+            max_messages: max_msgs_override.unwrap_or(max_msgs),
+            storage: stream::StorageType::Memory,
+            ..Default::default()
+        })
+        .await?;
     Ok(())
 }
 
@@ -720,8 +816,10 @@ fn print_summary(rows: &[EvalRow], rounds: u32) {
     println!("  ═══════════════════════════════════════════════════════════════");
     println!("  EVALUATION RESULTS — nats-lens detection coverage");
     println!("  ═══════════════════════════════════════════════════════════════");
-    println!("  {:30} {:>10} {:>15} {:>10}",
-        "Violation Type", "Detected", "Avg Latency", "Coverage");
+    println!(
+        "  {:30} {:>10} {:>15} {:>10}",
+        "Violation Type", "Detected", "Avg Latency", "Coverage"
+    );
     println!("  {}", "─".repeat(70));
 
     let scenarios = [
@@ -733,25 +831,35 @@ fn print_summary(rows: &[EvalRow], rounds: u32) {
     ];
 
     for scenario in &scenarios {
-        let scenario_rows: Vec<&EvalRow> = rows.iter()
-            .filter(|r| r.scenario == *scenario)
-            .collect();
+        let scenario_rows: Vec<&EvalRow> =
+            rows.iter().filter(|r| r.scenario == *scenario).collect();
 
-        if scenario_rows.is_empty() { continue; }
+        if scenario_rows.is_empty() {
+            continue;
+        }
 
         let n_detected = scenario_rows.iter().filter(|r| r.detected).count();
-        let latencies:  Vec<u64> = scenario_rows.iter()
+        let latencies: Vec<u64> = scenario_rows
+            .iter()
             .filter_map(|r| r.detection_latency_ms)
             .collect();
         let avg_latency = if latencies.is_empty() {
             "N/A".to_string()
         } else {
-            format!("{:.0}ms", latencies.iter().sum::<u64>() as f64 / latencies.len() as f64)
+            format!(
+                "{:.0}ms",
+                latencies.iter().sum::<u64>() as f64 / latencies.len() as f64
+            )
         };
         let coverage = n_detected as f64 / rounds as f64 * 100.0;
 
-        println!("  {:30} {:>10} {:>15} {:>9.1}%",
-            scenario, format!("{}/{}", n_detected, rounds), avg_latency, coverage);
+        println!(
+            "  {:30} {:>10} {:>15} {:>9.1}%",
+            scenario,
+            format!("{}/{}", n_detected, rounds),
+            avg_latency,
+            coverage
+        );
     }
 
     println!("  {}", "─".repeat(70));
@@ -780,10 +888,7 @@ struct OverheadResult {
     poll_cycle_ms: u64,
 }
 
-async fn measure_overhead(
-    js: &jetstream::Context,
-    poll_interval: u64,
-) -> Result<OverheadResult> {
+async fn measure_overhead(js: &jetstream::Context, poll_interval: u64) -> Result<OverheadResult> {
     // Count streams and consumers visible on this server
     let mut stream_names: Vec<String> = Vec::new();
     {
@@ -809,12 +914,14 @@ async fn measure_overhead(
     // Formula: 1 list + N_streams × (1 info + 1 consumer_names + N_consumers_avg × 1 info)
     let consumers_per_stream = if stream_count > 0 {
         consumer_count / stream_count
-    } else { 1 };
+    } else {
+        1
+    };
     let api_requests_per_poll = 1 + stream_count * (2 + consumers_per_stream);
 
     // Snapshot size estimate: ~120 bytes per ConsumerSnapshot struct
     let snapshot_bytes: u64 = 120;
-    let max_history:    u64 = 30;
+    let max_history: u64 = 30;
     let history_bytes = consumer_count * max_history * snapshot_bytes;
 
     // Measure poll cycle wall clock

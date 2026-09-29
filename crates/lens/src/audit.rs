@@ -13,11 +13,11 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Finding {
-    pub stream:      String,
-    pub consumer:    String,
-    pub severity:    &'static str,
-    pub rule:        &'static str,
-    pub detail:      String,
+    pub stream: String,
+    pub consumer: String,
+    pub severity: &'static str,
+    pub rule: &'static str,
+    pub detail: String,
     pub fix_command: String,
 }
 
@@ -26,30 +26,33 @@ pub struct Finding {
 /// Run the audit and print the report.  Returns `true` if any Critical finding
 /// was found (so the caller can exit with code 1 when --fail-on-critical).
 pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
-    let client  = NatsClient::new(nats);
+    let client = NatsClient::new(nats);
     let streams = client.list_streams().await?;
 
     let mut findings: Vec<Finding> = Vec::new();
     let mut total_consumers_checked: usize = 0;
 
     for stream in &streams {
-        let sname     = &stream.config.name;
+        let sname = &stream.config.name;
         let consumers = match client.list_consumer_names(sname).await {
-            Ok(c)  => c,
-            Err(e) => { eprintln!("warn: could not list consumers for {sname}: {e}"); continue; }
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("warn: could not list consumers for {sname}: {e}");
+                continue;
+            }
         };
 
         for cname in &consumers {
             total_consumers_checked += 1;
             let info = match client.consumer_info(sname, cname).await {
-                Ok(i)  => i,
+                Ok(i) => i,
                 Err(e) => {
                     eprintln!("warn: could not read {sname}/{cname}: {e}");
                     continue;
                 }
             };
 
-            let ack_wait_secs  = info.config.ack_wait_secs();
+            let ack_wait_secs = info.config.ack_wait_secs();
             let max_ack_pending = info.config.max_ack_pending();
 
             // ── Rule 1: ack_wait very short (strict threshold = 5s) ───────────
@@ -61,11 +64,11 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
             if ack_wait_secs <= 5 {
                 let recommended = 120u64;
                 findings.push(Finding {
-                    stream:   sname.clone(),
+                    stream: sname.clone(),
                     consumer: cname.clone(),
                     severity: "CRITICAL",
-                    rule:     "ACK_WAIT_TOO_SHORT",
-                    detail:   format!(
+                    rule: "ACK_WAIT_TOO_SHORT",
+                    detail: format!(
                         "ack_wait={ack_wait_secs}s is extremely short. Any processing that \
                          takes longer than {ack_wait_secs}s will cause NATS to redeliver \
                          mid-processing, producing duplicate execution."
@@ -77,11 +80,11 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
             } else if ack_wait_secs <= 30 {
                 let recommended = 120u64;
                 findings.push(Finding {
-                    stream:   sname.clone(),
+                    stream: sname.clone(),
                     consumer: cname.clone(),
                     severity: "WARNING",
-                    rule:     "ACK_WAIT_POTENTIALLY_SHORT",
-                    detail:   format!(
+                    rule: "ACK_WAIT_POTENTIALLY_SHORT",
+                    detail: format!(
                         "ack_wait={ack_wait_secs}s (at or near the 30s default). Safe for \
                          lightweight workloads, but any task taking longer than \
                          {ack_wait_secs}s will trigger redelivery. Ensure either \
@@ -101,11 +104,15 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
             if max_ack_pending < 64 && max_ack_pending > 0 {
                 let recommended = 256i64;
                 findings.push(Finding {
-                    stream:   sname.clone(),
+                    stream: sname.clone(),
                     consumer: cname.clone(),
-                    severity: if max_ack_pending < 10 { "CRITICAL" } else { "WARNING" },
-                    rule:     "MAX_PENDING_TOO_LOW",
-                    detail:   format!(
+                    severity: if max_ack_pending < 10 {
+                        "CRITICAL"
+                    } else {
+                        "WARNING"
+                    },
+                    rule: "MAX_PENDING_TOO_LOW",
+                    detail: format!(
                         "max_ack_pending={max_ack_pending} is very low. \
                          NATS will throttle delivery when {max_ack_pending} messages \
                          are in-flight, even if your consumers have capacity. \
@@ -127,11 +134,11 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
             if let Some(max_msgs) = stream.config.max_msgs {
                 if max_msgs > 0 && max_msgs < 1000 {
                     findings.push(Finding {
-                        stream:   sname.clone(),
+                        stream: sname.clone(),
                         consumer: cname.clone(),
                         severity: "WARNING",
-                        rule:     "LOW_STREAM_RETENTION",
-                        detail:   format!(
+                        rule: "LOW_STREAM_RETENTION",
+                        detail: format!(
                             "Stream {sname} has max_msgs={max_msgs}. \
                              If this consumer falls behind by more than {max_msgs} messages, \
                              NATS will evict older messages before the consumer can process them, \
@@ -150,11 +157,11 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
             // We can't verify that from config alone, but we can warn.
             if ack_wait_secs > 60 {
                 findings.push(Finding {
-                    stream:   sname.clone(),
+                    stream: sname.clone(),
                     consumer: cname.clone(),
                     severity: "INFO",
-                    rule:     "LONG_ACK_WAIT_NEEDS_PROGRESS",
-                    detail:   format!(
+                    rule: "LONG_ACK_WAIT_NEEDS_PROGRESS",
+                    detail: format!(
                         "ack_wait={ack_wait_secs}s is long. This is correct if your tasks \
                          take that long — but ensure your consumer sends in_progress acks \
                          every ~30s for tasks near or over {ack_wait_secs}s, otherwise \
@@ -173,7 +180,7 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
 
     match format {
         "json" => print_json(&findings)?,
-        _      => print_text(&findings, streams.len(), total_consumers_checked),
+        _ => print_text(&findings, streams.len(), total_consumers_checked),
     }
 
     Ok(had_critical)
@@ -183,8 +190,8 @@ pub async fn run_audit(nats: async_nats::Client, format: &str) -> Result<bool> {
 
 fn print_text(findings: &[Finding], stream_count: usize, consumers_checked: usize) {
     let n_critical = findings.iter().filter(|f| f.severity == "CRITICAL").count();
-    let n_warning  = findings.iter().filter(|f| f.severity == "WARNING").count();
-    let n_info     = findings.iter().filter(|f| f.severity == "INFO").count();
+    let n_warning = findings.iter().filter(|f| f.severity == "WARNING").count();
+    let n_info = findings.iter().filter(|f| f.severity == "INFO").count();
 
     println!();
     println!("  nats-lens init — JetStream Configuration Audit");
@@ -211,9 +218,8 @@ fn print_text(findings: &[Finding], stream_count: usize, consumers_checked: usiz
     }
 
     for stream in &streams_seen {
-        let stream_findings: Vec<&Finding> = findings.iter()
-            .filter(|f| &f.stream == stream)
-            .collect();
+        let stream_findings: Vec<&Finding> =
+            findings.iter().filter(|f| &f.stream == stream).collect();
 
         println!("  Stream: {stream}");
         println!("  {}", "─".repeat(50));
@@ -221,13 +227,14 @@ fn print_text(findings: &[Finding], stream_count: usize, consumers_checked: usiz
         for f in stream_findings {
             let icon = match f.severity {
                 "CRITICAL" => "🔴",
-                "WARNING"  => "🟡",
-                _          => "ℹ️ ",
+                "WARNING" => "🟡",
+                _ => "ℹ️ ",
             };
             println!();
-            println!("  {icon} [{severity}] {rule}  —  consumer: {consumer}",
+            println!(
+                "  {icon} [{severity}] {rule}  —  consumer: {consumer}",
                 severity = f.severity,
-                rule     = f.rule,
+                rule = f.rule,
                 consumer = f.consumer,
             );
             println!();
@@ -256,7 +263,7 @@ fn print_json(findings: &[Finding]) -> Result<()> {
 
 /// Very simple word wrapper — splits on spaces, respects max_width.
 fn wrap(s: &str, max_width: usize) -> Vec<String> {
-    let mut lines  = Vec::new();
+    let mut lines = Vec::new();
     let mut current = String::new();
     for word in s.split_whitespace() {
         if current.is_empty() {
@@ -269,6 +276,8 @@ fn wrap(s: &str, max_width: usize) -> Vec<String> {
             current = word.to_string();
         }
     }
-    if !current.is_empty() { lines.push(current); }
+    if !current.is_empty() {
+        lines.push(current);
+    }
     lines
 }

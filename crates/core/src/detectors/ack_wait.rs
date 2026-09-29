@@ -41,8 +41,7 @@ pub fn detect(current: &ConsumerSnapshot, history: &HistoryStore) -> Option<Viol
     let prev = &snaps[snaps.len() - 2];
     let now = &snaps[snaps.len() - 1];
 
-    let elapsed_secs =
-        (now.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
+    let elapsed_secs = (now.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
     if elapsed_secs <= 0.0 {
         return None;
     }

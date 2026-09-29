@@ -8,7 +8,9 @@ use tracing::{error, info, warn};
 use crate::client::NatsClient;
 use crate::detectors;
 use crate::history::HistoryStore;
-use crate::types::{ConsumerHealth, ConsumerSnapshot, Health, Severity, StreamHealth, StreamInfo, Violation};
+use crate::types::{
+    ConsumerHealth, ConsumerSnapshot, Health, Severity, StreamHealth, StreamInfo, Violation,
+};
 
 /// Capacity of the violation broadcast channel.  Old violations are silently
 /// dropped when receivers fall behind.
@@ -18,20 +20,20 @@ const BROADCAST_CAPACITY: usize = 1_024;
 /// detectors, publishes violations over a broadcast channel, and keeps the
 /// latest `Vec<StreamHealth>` accessible for the REST API.
 pub struct Engine {
-    client:  Arc<NatsClient>,
+    client: Arc<NatsClient>,
     history: Arc<Mutex<HistoryStore>>,
-    tx:      broadcast::Sender<Violation>,
-    state:   Arc<RwLock<Vec<StreamHealth>>>,
+    tx: broadcast::Sender<Violation>,
+    state: Arc<RwLock<Vec<StreamHealth>>>,
 }
 
 impl Engine {
     pub fn new(nats: async_nats::Client) -> Self {
         let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         Self {
-            client:  Arc::new(NatsClient::new(nats)),
+            client: Arc::new(NatsClient::new(nats)),
             history: Arc::new(Mutex::new(HistoryStore::new())),
             tx,
-            state:   Arc::new(RwLock::new(Vec::new())),
+            state: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -57,8 +59,12 @@ impl Engine {
     /// Shared handle to the history store — lets the web server serve
     /// per-consumer lag history without duplicating storage.
     /// Expose the underlying NATS client (Arc-wrapped) for the Apply Now backend.
-    pub fn nats_client(&self) -> &NatsClient { &self.client }
-    pub fn nats_client_arc(&self) -> Arc<NatsClient> { Arc::clone(&self.client) }
+    pub fn nats_client(&self) -> &NatsClient {
+        &self.client
+    }
+    pub fn nats_client_arc(&self) -> Arc<NatsClient> {
+        Arc::clone(&self.client)
+    }
 
     pub fn history_store(&self) -> Arc<Mutex<HistoryStore>> {
         Arc::clone(&self.history)
@@ -85,8 +91,7 @@ impl Engine {
         // Build the set of (stream, consumer) keys visible this poll cycle.
         // We use it below to evict deleted consumers from the history store,
         // preventing unbounded memory growth in environments with ephemeral consumers.
-        let mut live_keys: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
+        let mut live_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         for stream in &streams {
             match self.poll_stream(stream, &mut live_keys).await {
@@ -98,7 +103,8 @@ impl Engine {
         // Evict consumers that no longer exist from the history store.
         {
             let mut history = self.history.lock().await;
-            let stale: Vec<String> = history.keys()
+            let stale: Vec<String> = history
+                .keys()
                 .filter(|k| !live_keys.contains(k.as_str()))
                 .cloned()
                 .collect();
@@ -122,7 +128,10 @@ impl Engine {
 
         for consumer_name in &consumer_names {
             live_keys.insert(format!("{stream_name}/{consumer_name}"));
-            match self.poll_consumer(stream_name, consumer_name, stream_info).await {
+            match self
+                .poll_consumer(stream_name, consumer_name, stream_info)
+                .await
+            {
                 Ok(ch) => consumer_healths.push(ch),
                 Err(e) => warn!("Skipping consumer '{stream_name}/{consumer_name}': {e:#}"),
             }
@@ -132,10 +141,10 @@ impl Engine {
 
         Ok(StreamHealth {
             stream_name: stream_name.clone(),
-            config:      stream_info.config.clone(),
-            state:       stream_info.state.clone(),
-            health:      overall_health,
-            consumers:   consumer_healths,
+            config: stream_info.config.clone(),
+            state: stream_info.state.clone(),
+            health: overall_health,
+            consumers: consumer_healths,
         })
     }
 
@@ -145,21 +154,24 @@ impl Engine {
         consumer_name: &str,
         stream_info: &StreamInfo,
     ) -> anyhow::Result<ConsumerHealth> {
-        let info = self.client.consumer_info(stream_name, consumer_name).await?;
+        let info = self
+            .client
+            .consumer_info(stream_name, consumer_name)
+            .await?;
 
         let snapshot = ConsumerSnapshot {
-            stream_name:          stream_name.to_string(),
-            consumer_name:        consumer_name.to_string(),
-            num_pending:          info.num_pending,
-            num_ack_pending:      info.num_ack_pending,
-            num_redelivered:      info.num_redelivered,
-            max_ack_pending:      info.config.max_ack_pending(),
-            ack_wait_secs:        info.config.ack_wait_secs(),
+            stream_name: stream_name.to_string(),
+            consumer_name: consumer_name.to_string(),
+            num_pending: info.num_pending,
+            num_ack_pending: info.num_ack_pending,
+            num_redelivered: info.num_redelivered,
+            max_ack_pending: info.config.max_ack_pending(),
+            ack_wait_secs: info.config.ack_wait_secs(),
             delivered_stream_seq: info.delivered.stream_seq,
             ack_floor_stream_seq: info.ack_floor.stream_seq,
-            stream_first_seq:     stream_info.state.first_seq,
-            stream_last_seq:      stream_info.state.last_seq,
-            captured_at:          Utc::now(),
+            stream_first_seq: stream_info.state.first_seq,
+            stream_last_seq: stream_info.state.last_seq,
+            captured_at: Utc::now(),
         };
 
         // Push snapshot to history, run detectors, compute rate — all in one
@@ -202,10 +214,10 @@ impl Engine {
         let health = derive_health(&violations);
 
         Ok(ConsumerHealth {
-            stream_name:          stream_name.to_string(),
-            consumer_name:        consumer_name.to_string(),
+            stream_name: stream_name.to_string(),
+            consumer_name: consumer_name.to_string(),
             health,
-            lag:                  snapshot.num_pending,
+            lag: snapshot.num_pending,
             redeliveries_per_min,
             violations,
             snapshot,
@@ -239,8 +251,7 @@ fn compute_redelivery_rate(snaps: &[ConsumerSnapshot]) -> f64 {
     }
     let prev = &snaps[snaps.len() - 2];
     let curr = &snaps[snaps.len() - 1];
-    let elapsed_secs =
-        (curr.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
+    let elapsed_secs = (curr.captured_at - prev.captured_at).num_milliseconds() as f64 / 1_000.0;
     if elapsed_secs <= 0.0 {
         return 0.0;
     }

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
+use axum::http::Method;
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -23,7 +24,6 @@ use nats_lens_core::types::{StreamHealth, Violation};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio_stream::wrappers::BroadcastStream;
 use tower_http::cors::{Any, CorsLayer};
-use axum::http::Method;
 
 // Embed the UI at compile time so the binary is fully self-contained.
 const INDEX_HTML: &str = include_str!("../../../ui/index.html");
@@ -33,19 +33,19 @@ const INDEX_HTML: &str = include_str!("../../../ui/index.html");
 #[derive(Clone)]
 struct AppState {
     stream_health: Arc<RwLock<Vec<StreamHealth>>>,
-    violation_tx:  broadcast::Sender<Violation>,
-    history:       Arc<Mutex<HistoryStore>>,
-    nats_client:   Arc<NatsClient>,
+    violation_tx: broadcast::Sender<Violation>,
+    history: Arc<Mutex<HistoryStore>>,
+    nats_client: Arc<NatsClient>,
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub async fn serve(
-    addr:          SocketAddr,
+    addr: SocketAddr,
     stream_health: Arc<RwLock<Vec<StreamHealth>>>,
-    violation_tx:  broadcast::Sender<Violation>,
-    history:       Arc<Mutex<HistoryStore>>,
-    nats_client:   Arc<NatsClient>,
+    violation_tx: broadcast::Sender<Violation>,
+    history: Arc<Mutex<HistoryStore>>,
+    nats_client: Arc<NatsClient>,
 ) -> Result<()> {
     let state = Arc::new(AppState {
         stream_health,
@@ -64,15 +64,24 @@ pub async fn serve(
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/",                                          get(index))
-        .route("/health",                                    get(health_check))
-        .route("/metrics",                                   get(metrics))
-        .route("/api/streams",                               get(api_streams))
-        .route("/api/violations/stream",                     get(violations_sse))
-        .route("/api/history/:stream/:consumer",             get(api_history))
-        .route("/api/fix/:stream/:consumer/ack-wait",        axum::routing::post(apply_fix_ack_wait))
-        .route("/api/fix/:stream/:consumer/max-pending",     axum::routing::post(apply_fix_max_pending))
-        .route("/api/fix/:stream/max-msgs",                  axum::routing::post(apply_fix_max_msgs))
+        .route("/", get(index))
+        .route("/health", get(health_check))
+        .route("/metrics", get(metrics))
+        .route("/api/streams", get(api_streams))
+        .route("/api/violations/stream", get(violations_sse))
+        .route("/api/history/:stream/:consumer", get(api_history))
+        .route(
+            "/api/fix/:stream/:consumer/ack-wait",
+            axum::routing::post(apply_fix_ack_wait),
+        )
+        .route(
+            "/api/fix/:stream/:consumer/max-pending",
+            axum::routing::post(apply_fix_max_pending),
+        )
+        .route(
+            "/api/fix/:stream/max-msgs",
+            axum::routing::post(apply_fix_max_msgs),
+        )
         .layer(cors)
         .with_state(state);
 
@@ -94,9 +103,7 @@ async fn health_check() -> impl IntoResponse {
 }
 
 /// Return all stream health snapshots as JSON.
-async fn api_streams(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+async fn api_streams(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let streams = state.stream_health.read().await.clone();
     Json(streams)
 }
@@ -146,7 +153,9 @@ async fn metrics(State(state): State<Arc<AppState>>) -> Response {
         for ch in &sh.consumers {
             out.push_str(&format!(
                 "nats_lens_ack_pending_ratio{{stream=\"{}\",consumer=\"{}\"}} {:.4}\n",
-                sh.stream_name, ch.consumer_name, ch.snapshot.pending_ratio()
+                sh.stream_name,
+                ch.consumer_name,
+                ch.snapshot.pending_ratio()
             ));
         }
     }
@@ -166,8 +175,7 @@ async fn metrics(State(state): State<Arc<AppState>>) -> Response {
     out.push_str("# TYPE nats_lens_violations_active gauge\n");
     for sh in &streams {
         for ch in &sh.consumers {
-            let active: HashSet<&str> =
-                ch.violations.iter().map(|v| v.violation.name()).collect();
+            let active: HashSet<&str> = ch.violations.iter().map(|v| v.violation.name()).collect();
             for vtype in VIOLATION_TYPES {
                 let val = if active.contains(*vtype) { 1 } else { 0 };
                 out.push_str(&format!(
@@ -259,7 +267,9 @@ const MIN_ACK_WAIT_SECS: u64 = 1;
 const MIN_MAX_PENDING: i64 = 1;
 
 #[derive(serde::Deserialize)]
-struct AckWaitBody { secs: u64 }
+struct AckWaitBody {
+    secs: u64,
+}
 
 /// POST /api/fix/:stream/:consumer/ack-wait   body: {"secs": 120}
 async fn apply_fix_ack_wait(
@@ -276,16 +286,28 @@ async fn apply_fix_ack_wait(
             })),
         );
     }
-    match state.nats_client.update_ack_wait(&stream, &consumer, body.secs).await {
-        Ok(_) => (StatusCode::OK,
-            Json(serde_json::json!({ "ok": true, "applied": format!("ack_wait={}s on {stream}/{consumer}", body.secs) }))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() }))),
+    match state
+        .nats_client
+        .update_ack_wait(&stream, &consumer, body.secs)
+        .await
+    {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(
+                serde_json::json!({ "ok": true, "applied": format!("ack_wait={}s on {stream}/{consumer}", body.secs) }),
+            ),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        ),
     }
 }
 
 #[derive(serde::Deserialize)]
-struct MaxPendingBody { value: i64 }
+struct MaxPendingBody {
+    value: i64,
+}
 
 /// POST /api/fix/:stream/:consumer/max-pending   body: {"value": 256}
 async fn apply_fix_max_pending(
@@ -302,16 +324,28 @@ async fn apply_fix_max_pending(
             })),
         );
     }
-    match state.nats_client.update_max_ack_pending(&stream, &consumer, body.value).await {
-        Ok(_) => (StatusCode::OK,
-            Json(serde_json::json!({ "ok": true, "applied": format!("max_ack_pending={} on {stream}/{consumer}", body.value) }))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() }))),
+    match state
+        .nats_client
+        .update_max_ack_pending(&stream, &consumer, body.value)
+        .await
+    {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(
+                serde_json::json!({ "ok": true, "applied": format!("max_ack_pending={} on {stream}/{consumer}", body.value) }),
+            ),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        ),
     }
 }
 
 #[derive(serde::Deserialize)]
-struct MaxMsgsBody { value: i64 }
+struct MaxMsgsBody {
+    value: i64,
+}
 
 /// POST /api/fix/:stream/max-msgs   body: {"value": 10000}
 async fn apply_fix_max_msgs(
@@ -328,10 +362,20 @@ async fn apply_fix_max_msgs(
             })),
         );
     }
-    match state.nats_client.update_stream_max_msgs(&stream, body.value).await {
-        Ok(_) => (StatusCode::OK,
-            Json(serde_json::json!({ "ok": true, "applied": format!("max_msgs={} on {stream}", body.value) }))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() }))),
+    match state
+        .nats_client
+        .update_stream_max_msgs(&stream, body.value)
+        .await
+    {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(
+                serde_json::json!({ "ok": true, "applied": format!("max_msgs={} on {stream}", body.value) }),
+            ),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        ),
     }
 }
