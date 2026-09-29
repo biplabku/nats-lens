@@ -912,11 +912,7 @@ async fn measure_overhead(js: &jetstream::Context, poll_interval: u64) -> Result
     }
 
     // Formula: 1 list + N_streams × (1 info + 1 consumer_names + N_consumers_avg × 1 info)
-    let consumers_per_stream = if stream_count > 0 {
-        consumer_count / stream_count
-    } else {
-        1
-    };
+    let consumers_per_stream = consumer_count.checked_div(stream_count).unwrap_or(1);
     let api_requests_per_poll = 1 + stream_count * (2 + consumers_per_stream);
 
     // Snapshot size estimate: ~120 bytes per ConsumerSnapshot struct

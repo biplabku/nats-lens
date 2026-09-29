@@ -672,7 +672,7 @@ async fn run_adversarial_experiment(
     {
         ensure_stream(js, "EVAL_ADV_D", "eval.adv.d.>", 10_000, None).await?;
         let stream = js.get_stream("EVAL_ADV_D").await?;
-        let consumer = stream
+        let _consumer = stream
             .get_or_create_consumer(
                 "eval-adv-d",
                 pull::Config {
