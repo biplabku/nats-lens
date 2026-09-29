@@ -1,0 +1,27 @@
+eval-multilang/go/main.go
+  s_eb5fcf0a950ba8::t_ad0ab7ac967f47 43-48
+  s_eb5fcf0a950ba8::t_3adeaa7a6034bd 55,57-65
+  s_eb5fcf0a950ba8::t_7acfef64f9c89f 179-297
+  s_eb5fcf0a950ba8::t_08f2029cdc1bf0 298
+eval-multilang/python/consumer.py
+  s_eb5fcf0a950ba8::t_83901cddbf1779 206,212-214,216-217
+  s_eb5fcf0a950ba8::t_e4a8526b2d291e 98-116,130,132,134-135,137-205,207-211,215,218-233
+  s_eb5fcf0a950ba8::t_45908c27f8a569 278-279,289-294
+  s_eb5fcf0a950ba8::t_9c6b470a8a9a89 117-129,131,133,136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "193688be5faae0255c2f3ecc5ee3473cafb9851e",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
