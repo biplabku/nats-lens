@@ -40,14 +40,29 @@ func main() {
 		runNakStorm(js, *duration)
 	case "healthy":
 		runHealthy(js, *duration)
+	case "seq_gap":
+		runSeqGap(js, *duration)
+	case "max_pending":
+		runMaxPending(js, *duration)
+	case "missing_progress":
+		runMissingProgress(js, *duration)
 	default:
 		log.Fatalf("unknown scenario: %s", *scenario)
 	}
 }
 
 // ── AckWaitViolation ──────────────────────────────────────────────────────────
-// Creates a consumer with ack_wait=4s. Pulls messages and holds them for 6s
+// Creates a consumer with ack_wait=2s. Pulls messages and holds them for 3s
 // without acking. NATS redelivers → num_redelivered grows → nats-lens detects.
+//
+// NOTE on fetch-buffer semantics (nats.go v1.37):
+// PullSubscribe.Fetch() delivers messages in NATS sequence order. After
+// ack_wait fires, redelivered messages hold their original sequence position
+// and are delivered before new messages on the next Fetch(). This causes the
+// same N messages to cycle continuously, keeping num_redelivered stable at N
+// rather than growing — matching the NAK_STORM metric signature instead of
+// ACK_WAIT_VIOLATION. nats-lens correctly fires NAK_STORM for this pattern.
+// See the multilang evaluation section of the paper for the full analysis.
 func runAckWait(js nats.JetStreamContext, dur time.Duration) {
 	const stream   = "GOLANG_ACK"
 	const consumer = "go-ack-consumer"
@@ -159,6 +174,126 @@ func runNakStorm(js nats.JetStreamContext, dur time.Duration) {
 	js.DeleteConsumer(stream, consumer)
 	js.PurgeStream(stream)
 	fmt.Println("[Go NakStorm] Done.")
+}
+
+// ── SequenceGap ───────────────────────────────────────────────────────────────
+// Stream retains only last 10 messages; consumer falls behind → gap detected.
+func runSeqGap(js nats.JetStreamContext, dur time.Duration) {
+	const stream   = "GOLANG_SEQ"
+	const consumer = "go-seq-consumer"
+	const subject  = "go.seq.msg"
+
+	js.AddStream(&nats.StreamConfig{
+		Name:     stream,
+		Subjects: []string{subject},
+		Storage:  nats.MemoryStorage,
+		MaxMsgs:  10, // tiny retention
+	})
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	js.AddConsumer(stream, &nats.ConsumerConfig{
+		Durable:       consumer,
+		AckPolicy:     nats.AckExplicitPolicy,
+		AckWait:       300 * time.Second,
+		MaxAckPending: 512,
+	})
+
+	// Publish 200 messages into a 10-msg stream → evicts first 190 → gap
+	for i := 0; i < 200; i++ {
+		js.Publish(subject, []byte(fmt.Sprintf(`{"i":%d}`, i)))
+	}
+	fmt.Println("[Go SeqGap] 190 messages evicted. nats-lens should detect SequenceGap.")
+
+	deadline := time.Now().Add(dur)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+	}
+
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	fmt.Println("[Go SeqGap] Done.")
+}
+
+// ── MaxPendingThrottle ────────────────────────────────────────────────────────
+// num_ack_pending == max_ack_pending AND num_pending > 0 → delivery throttled.
+func runMaxPending(js nats.JetStreamContext, dur time.Duration) {
+	const stream   = "GOLANG_MAX"
+	const consumer = "go-max-consumer"
+	const subject  = "go.max.msg"
+
+	js.AddStream(&nats.StreamConfig{
+		Name:     stream,
+		Subjects: []string{subject},
+		Storage:  nats.MemoryStorage,
+		MaxMsgs:  5000,
+	})
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	js.AddConsumer(stream, &nats.ConsumerConfig{
+		Durable:       consumer,
+		AckPolicy:     nats.AckExplicitPolicy,
+		AckWait:       300 * time.Second,
+		MaxAckPending: 5, // tiny window
+	})
+
+	for i := 0; i < 100; i++ {
+		js.Publish(subject, []byte(fmt.Sprintf(`{"i":%d}`, i)))
+	}
+
+	sub, _ := js.PullSubscribe(subject, consumer, nats.Bind(stream, consumer))
+	// Pull without acking → fills the 5-slot pending window
+	sub.Fetch(5, nats.MaxWait(2*time.Second))
+	fmt.Println("[Go MaxPending] Window full. nats-lens should detect MaxPendingThrottle.")
+
+	deadline := time.Now().Add(dur)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+	}
+
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	fmt.Println("[Go MaxPending] Done.")
+}
+
+// ── MissingProgress ───────────────────────────────────────────────────────────
+// num_ack_pending/max_ack_pending >= 0.9 AND ack_wait > 30s.
+func runMissingProgress(js nats.JetStreamContext, dur time.Duration) {
+	const stream   = "GOLANG_MISS"
+	const consumer = "go-miss-consumer"
+	const subject  = "go.miss.msg"
+
+	js.AddStream(&nats.StreamConfig{
+		Name:     stream,
+		Subjects: []string{subject},
+		Storage:  nats.MemoryStorage,
+		MaxMsgs:  5000,
+	})
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	js.AddConsumer(stream, &nats.ConsumerConfig{
+		Durable:       consumer,
+		AckPolicy:     nats.AckExplicitPolicy,
+		AckWait:       300 * time.Second,
+		MaxAckPending: 10,
+	})
+
+	for i := 0; i < 50; i++ {
+		js.Publish(subject, []byte(fmt.Sprintf(`{"i":%d}`, i)))
+	}
+
+	sub, _ := js.PullSubscribe(subject, consumer, nats.Bind(stream, consumer))
+	// Pull 9/10 of max_ack_pending without acking → ratio = 0.9
+	sub.Fetch(9, nats.MaxWait(2*time.Second))
+	fmt.Println("[Go MissingProgress] ratio=0.9. nats-lens should detect MissingProgress.")
+
+	deadline := time.Now().Add(dur)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+	}
+
+	js.DeleteConsumer(stream, consumer)
+	js.PurgeStream(stream)
+	fmt.Println("[Go MissingProgress] Done.")
 }
 
 // ── Healthy ───────────────────────────────────────────────────────────────────
