@@ -45,19 +45,6 @@ jobs:
   integration:
     name: Integration test
     runs-on: ubuntu-latest
-    services:
-      nats:
-        image: nats:latest
-        options: >-
-          --health-cmd "wget -qO- http://localhost:8222/healthz"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-        ports:
-          - 4222:4222
-          - 8222:8222
-        env:
-          NATS_ARGS: --jetstream
 
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +54,24 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Start NATS with JetStream
+        run: |
+          docker run -d --name nats-test \
+            -p 4222:4222 \
+            -p 8222:8222 \
+            nats:2.10-alpine \
+            --js \
+            -m 8222
+          # Wait for NATS to be ready
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8222/healthz > /dev/null 2>&1; then
+              echo "NATS ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:8222/healthz
 
       - name: Build nats-lens
         run: cargo build --release -p nats-lens
@@ -83,3 +88,7 @@ jobs:
           sleep 3
           curl -sf http://localhost:9999/health | grep '"status":"ok"'
           kill $LENS_PID
+
+      - name: Stop NATS
+        if: always()
+        run: docker stop nats-test && docker rm nats-test
