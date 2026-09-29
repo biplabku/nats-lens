@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/nats-lens.svg)](https://crates.io/crates/nats-lens)
-[![arXiv](https://img.shields.io/badge/arXiv-2026.nats--lens-b31b1b.svg)](https://arxiv.org/abs/2026.nats-lens)
+[![arXiv](https://img.shields.io/badge/arXiv-2609.35310-b31b1b.svg)](https://arxiv.org/abs/2609.35310)
 
 ---
 

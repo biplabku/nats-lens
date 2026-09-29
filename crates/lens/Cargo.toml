@@ -2,7 +2,14 @@
 name        = "nats-lens"
 version     = "0.1.0"
 edition     = "2021"
-description = "NATS JetStream health monitoring dashboard"
+description = "NATS JetStream delivery guarantee violation detector"
+license     = "MIT"
+repository  = "https://github.com/biplabku/nats-lens"
+homepage    = "https://github.com/biplabku/nats-lens"
+documentation = "https://github.com/biplabku/nats-lens"
+keywords    = ["nats", "jetstream", "monitoring", "observability", "messaging"]
+categories  = ["network-programming", "development-tools"]
+readme      = "../../README.md"
 
 [[bin]]
 name = "nats-lens"

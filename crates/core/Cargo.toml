@@ -3,6 +3,11 @@ name        = "nats-lens-core"
 version     = "0.1.0"
 edition     = "2021"
 description = "Detection engine for NATS JetStream delivery guarantee violations"
+license     = "MIT"
+repository  = "https://github.com/biplabku/nats-lens"
+homepage    = "https://github.com/biplabku/nats-lens"
+keywords    = ["nats", "jetstream", "monitoring", "observability", "delivery"]
+categories  = ["network-programming", "development-tools"]
 
 [dependencies]
 async-nats       = { workspace = true }

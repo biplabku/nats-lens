@@ -7,6 +7,10 @@ edition = "2021"
 name = "nats-lens-eval"
 path = "src/main.rs"
 
+[[bin]]
+name = "nats-lens-eval-extended"
+path = "src/extended_main.rs"
+
 [dependencies]
 nats-lens-core   = { path = "../core" }
 async-nats       = { workspace = true }
