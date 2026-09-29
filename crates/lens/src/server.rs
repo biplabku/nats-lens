@@ -26,7 +26,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tower_http::cors::{Any, CorsLayer};
 
 // Embed the UI at compile time so the binary is fully self-contained.
-const INDEX_HTML: &str = include_str!("../../../ui/index.html");
+const INDEX_HTML: &str = include_str!("../ui/index.html");
 
 // ── App state ─────────────────────────────────────────────────────────────────
 
