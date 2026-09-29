@@ -1,0 +1,34 @@
+analysis/generate_diagrams.py
+  s_eb5fcf0a950ba8::t_299aa082e3a8b6 1-173
+analysis/plot_tnsm_figures.py
+  s_eb5fcf0a950ba8::t_1f590869bf6ec2 1-220
+analysis/plot_scale.py
+  s_eb5fcf0a950ba8::t_bb6c7af12cfb8d 1-57
+scripts/scale_benchmark.py
+  s_eb5fcf0a950ba8::t_108c7361d55cdd 1-188
+analysis/naive_baseline_comparison.py
+  s_eb5fcf0a950ba8::t_f61310c76e1aac 1-275
+scripts/run_multilang_all5.sh
+  s_eb5fcf0a950ba8::t_c3c39af8f883b3 27,92,105
+  s_eb5fcf0a950ba8::t_8982c4cf2f0415 35,61
+  s_eb5fcf0a950ba8::t_a4398ca1cedde4 1-26,28-34,36-39,41,44-47,62-63,65-91,93-104,106-113
+  s_eb5fcf0a950ba8::t_814f22b0f8142e 40,42-43,48-60,64
+scripts/run-tnsm-evaluation.sh
+  s_eb5fcf0a950ba8::t_ca6429dddcaa47 1-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "9d0c5e0f58b5bb32a7307da4733f08eb03b58c3b",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Das <bidas@users.noreply.github.com>"
+    }
+  }
+}
