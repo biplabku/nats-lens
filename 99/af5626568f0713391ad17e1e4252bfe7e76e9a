@@ -1,0 +1,19 @@
+README.md
+  s_eb5fcf0a950ba8::t_57798548cd53a9 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "99af5626568f0713391ad17e1e4252bfe7e76e9a",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Kumar Das <dasbiplabtu@gmail.com>"
+    }
+  }
+}
