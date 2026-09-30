@@ -1,6 +1,6 @@
 [package]
 name        = "nats-lens"
-version     = "0.1.1"
+version     = "0.1.2"
 edition     = "2021"
 description = "NATS JetStream delivery guarantee violation detector"
 license     = "MIT"
@@ -16,7 +16,7 @@ name = "nats-lens"
 path = "src/main.rs"
 
 [dependencies]
-nats-lens-core  = { version = "0.1.1", path = "../core" }
+nats-lens-core  = { version = "0.1.2", path = "../core" }
 async-nats      = { workspace = true }
 tokio           = { workspace = true }
 serde           = { workspace = true }
