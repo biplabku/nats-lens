@@ -6,6 +6,8 @@
 [![Crates.io](https://img.shields.io/crates/v/nats-lens.svg)](https://crates.io/crates/nats-lens)
 [![arXiv](https://img.shields.io/badge/arXiv-2609.35310-b31b1b.svg)](https://arxiv.org/abs/2609.35310)
 
+**nats-lens connects to your NATS server as a read-only observer, detects the five configuration mistakes that silently break JetStream's at-least-once delivery guarantee, and tells you exactly how to fix them — with zero changes to your application code.**
+
 ---
 
 ![Architecture](docs/images/architecture.png)
