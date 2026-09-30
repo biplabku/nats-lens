@@ -10,7 +10,7 @@
 
 ---
 
-![Architecture](docs/images/architecture.png)
+![Architecture](https://raw.githubusercontent.com/biplabku/nats-lens/main/docs/images/architecture.png)
 
 ---
 
@@ -22,7 +22,7 @@ Standard monitoring tools (Prometheus, Datadog, existing NATS dashboards) show t
 
 **nats-lens detects all five.**
 
-![Violation Timelines](docs/images/violation_timelines.png)
+![Violation Timelines](https://raw.githubusercontent.com/biplabku/nats-lens/main/docs/images/violation_timelines.png)
 
 ---
 
