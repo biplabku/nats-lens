@@ -1,0 +1,27 @@
+crates/core/Cargo.toml
+  s_eb5fcf0a950ba8::t_0c176e93ab4d77 3,9
+crates/core/README.md
+  s_eb5fcf0a950ba8::t_828dc588de99c7 1-384
+crates/lens/Cargo.toml
+  s_eb5fcf0a950ba8::t_b70dc2bb471a87 12
+  s_eb5fcf0a950ba8::t_f32a6fd7adcc14 3
+  s_eb5fcf0a950ba8::t_ad900a583fca02 19
+crates/lens/README.md
+  s_eb5fcf0a950ba8::t_828dc588de99c7 1-384
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "c6a2e0e26f8a63aca6b24cf29aea99391de72a8f",
+  "prompts": {},
+  "sessions": {
+    "s_eb5fcf0a950ba8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0e5eec4-ad59-4092-8ae1-99f56c90328a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Biplab Kumar Das <dasbiplabtu@gmail.com>"
+    }
+  }
+}
